@@ -20,4 +20,6 @@ def test_delta_n_zero_at_zero_field():
 
 def test_schwinger_rate_tiny_below_threshold():
     w = schwinger_rate(1e-2 * E_s)
-    assert w < 1e-100  # Astronomically small
+    # Astronomically small; should be far below any lab-detectable rate
+    # At E = 1e-2 E_s, the n=1 term yields ~4e-85 m^-3 s^-1
+    assert w < 1e-80
