@@ -105,7 +105,87 @@ These are path-finder estimates for comparing geometries and configurations, not
 ## Caution
 These models are leading-order, homogeneous-field approximations. Real experiments involve spatiotemporal structure, dispersion, damage thresholds, and noise.
 
+## Discovery Engine: Systematic New Physics Search
+
+This framework has evolved into a **discovery engine** for constraining new physics via null results. Instead of just computing predictions, it systematically derives **coupling strength constraints** (κ-bounds) when experiments see no signal.
+
+### Core Capabilities
+
+1. **κ-Parameterized Ansätze** (7 physics-motivated models):
+   - `axion_like`: E·B parity-odd coupling (compare to CAST/ADMX)
+   - `dilaton_like`: T^μ_μ scalar-tensor gravity
+   - `chern_simons_like`: A·B Lorentz violation (SME framework)
+   - `field_invariant_F2`, `vector_potential_squared`, `photon_number`, `spatial_gradient`
+
+2. **Real Detector Models** with frequency-dependent sensitivity:
+   - LIGO O1, aLIGO design, LISA, Einstein Telescope
+   - Quantum sensors (aspirational h~10⁻³⁰)
+   - Matched-filter SNR: `SNR² = 4∫|h̃(f)|²/S_n(f) df`
+
+3. **Automated Parameter Sweeps**:
+   ```bash
+   python scripts/run_experiments.py --config configs/sweeps.yaml --sweep sweep_E0_colliding_pulses
+   ```
+   - Outputs consolidated CSV with κ-constraints per ansatz–detector pair
+   - Auto-generated 4-panel plots: h_rms, P_avg, κ_required, peak_freq vs. swept parameter
+   - Sweep E₀, waist, Q-factor, grid resolution, etc.
+
+4. **Publication-Ready Constraint Derivation**:
+   - For each (source config, detector, ansatz): compute κ_required for 5σ detection
+   - **Null result** → publish: "κ < κ_required at 95% CL"
+   - Discovery reach curves: show parameter space where future experiments can probe
+
+### Quick Start: Discovery Mode
+
+```bash
+# Run a 3-point validation sweep (E₀ = 5×10¹³, 1×10¹⁴, 2×10¹⁴ V/m)
+python scripts/run_experiments.py --config configs/test_mini_sweep.yaml --sweep test_mini_sweep
+
+# Output:
+# - results/sweeps/test_mini/test_mini_sweep_summary.csv (κ-constraints)
+# - results/sweeps/test_mini/test_mini_sweep_plots.png (auto-plots)
+
+# Production sweeps (7-point E₀, 6-point waist, 5-point cavity-Q)
+python scripts/run_experiments.py --config configs/sweeps.yaml --sweep sweep_E0_colliding_pulses
+python scripts/run_experiments.py --config configs/sweeps.yaml --sweep sweep_waist_colliding_pulses
+python scripts/run_experiments.py --config configs/sweeps.yaml --sweep sweep_Q_cavity
+```
+
+### Expected Scaling (Validation Checkpoints)
+
+- **Strain vs. Field**: `h ∝ E₀²` (quadrupole moment ∝ stress-energy ∝ E²)
+- **Power vs. Field**: `P_GW ∝ E₀⁴` (time derivative of quadrupole)
+- **κ-Constraint**: `κ_required ∝ 1/E₀²` (higher field → stronger constraint)
+
+Example from `test_mini_sweep`:
+```
+E₀ = 5×10¹³ V/m  →  h_rms = 3.7×10⁻⁵⁹,  κ_LIGO = 2.3×10³³
+E₀ = 2×10¹⁴ V/m  →  h_rms = 5.9×10⁻⁵⁸,  κ_LIGO = 8.9×10³⁰  (16× improvement)
+```
+
+### Interpreting Results
+
+**Q**: My κ_required is 10⁵⁰. Is the code broken?
+
+**A**: No! This means the anomalous coupling would need to be *enormous* to produce a detectable signal with current experiments. This is useful science:
+- Confirms known physics (EM + GR) predicts negligible signal
+- Sets an **upper bound**: null result → κ < 10⁵⁰
+- Guides theory: if your model predicts κ ~ 10⁴⁵, experiment is relevant; if κ ~ 10²⁰, need different approach
+
+**Q**: How do I compare ansätze?
+
+**A**: **Don't compare κ-values across ansätze** (different units, different physics). Instead:
+- Compare κ-constraints **within same ansatz** across different experiments
+- Map κ to theory-specific couplings (e.g., axion g_aγγ, dilaton VEV, SME coefficients)
+
+### Documentation & Guides
+
+- **[Discovery Engine Guide](docs/DiscoveryEngineGuide.md)** – Complete methodology, ansätze catalog, sweep design, troubleshooting
+- **[Back-Reaction Assessment Guide](docs/BackReactionGuide.md)** – How to interpret metrics and run systematic sweeps to assess EM ↔ spacetime viability
+- **[Detector Sensitivity Curves](docs/detector_sensitivities.png)** – ASDs for LIGO/LISA/ET/quantum sensors
+
 ## Documentation
+- [Discovery Engine Guide](docs/DiscoveryEngineGuide.md) – **Complete guide** to κ-constraint methodology, parameter sweeps, ansätze catalog, and publication workflow
 - [Back-Reaction Assessment Guide](docs/BackReactionGuide.md) – How to interpret metrics and run systematic sweeps to assess EM ↔ spacetime viability
 
 ## License
