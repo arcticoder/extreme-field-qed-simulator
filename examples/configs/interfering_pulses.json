@@ -1,0 +1,14 @@
+{
+  "enable_gravity": true,
+  "observer_distance_m": 10.0,
+  "box_size_m": 0.05,
+  "grid_points": 25,
+  "dt_s": 1e-15,
+  "steps": 400,
+  "source": {
+    "type": "interfering_pulses",
+    "E0_Vpm": 1e15,
+    "wavelength_m": 800e-9,
+    "frequency_Hz": 3.75e14
+  }
+}
