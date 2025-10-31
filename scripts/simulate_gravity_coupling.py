@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from efqs.em_sources import make_grid, interfering_pulses_energy, rotating_quadrupole_energy, gaussian_beam_energy
-from efqs.gravitational_coupling import quadrupole_moment, strain_far_field, radiated_power_from_quadrupole
+from efqs.gravitational_coupling import quadrupole_moment, strain_far_field, radiated_power_from_quadrupole, dominant_frequency
 from efqs.metrics import coupling_metrics
 from efqs.pair_production import energy_loss_power
 from efqs.cli_utils import load_config, save_results_json
@@ -102,6 +102,9 @@ def main():
         print("Coupling metrics:")
         for k, v in m.items():
             print(f"  {k}: {v:.3e}")
+        # Frequency-domain analysis
+        freq_info = dominant_frequency(h_t, dt, component=(0, 0))
+        print(f"Strain spectrum (h_xx): peak at {freq_info['peak_freq_Hz']:.3e} Hz, amplitude {freq_info['peak_amplitude']:.3e}, BW {freq_info['bandwidth_Hz']:.3e} Hz")
         # Optional JSON output
         out_path = cfg.get("output_json")
         if out_path:
@@ -115,6 +118,7 @@ def main():
                 "rms_strain": rms_h,
                 "avg_P_GW_W": avg_P,
                 "metrics": m,
+                "frequency_spectrum": freq_info,
             }
             save_results_json(results, out_path)
             print(f"Saved results to {out_path}")

@@ -190,3 +190,52 @@ def h00_static_poisson(u: np.ndarray, dV: float, positions: np.ndarray, probe_po
     R = np.linalg.norm(positions - r, axis=1) + 1e-12
     val = (4.0 * G / (c**4)) * np.sum(u / R * dV)
     return float(val)
+
+
+def strain_spectrum(h_t: np.ndarray, dt: float, component: Tuple[int, int] = (0, 0)) -> Tuple[np.ndarray, np.ndarray]:
+    """Compute the one-sided frequency-domain spectrum of a strain component via FFT.
+    
+    h_t: (T, 3, 3) time series of strain tensors
+    dt: time step [s]
+    component: (i,j) component to analyze (default h_xx)
+    Returns:
+      freqs: (N,) one-sided frequency array [Hz]
+      magnitude: (N,) one-sided FFT magnitude |h(f)| [dimensionless]
+    """
+    h_series = h_t[:, component[0], component[1]]
+    N = len(h_series)
+    fft_vals = np.fft.rfft(h_series)
+    freqs = np.fft.rfftfreq(N, d=dt)
+    magnitude = np.abs(fft_vals) * (2.0 / N)  # normalize for one-sided
+    return freqs, magnitude
+
+
+def dominant_frequency(h_t: np.ndarray, dt: float, component: Tuple[int, int] = (0, 0)) -> dict:
+    """Extract dominant frequency and bandwidth from strain time series.
+    
+    Returns a dict with:
+      'peak_freq_Hz': frequency of maximum |h(f)|
+      'peak_amplitude': magnitude at peak
+      'bandwidth_Hz': approximate FWHM bandwidth (simple threshold-based)
+    """
+    freqs, mag = strain_spectrum(h_t, dt, component)
+    if len(freqs) == 0 or np.max(mag) == 0.0:
+        return {'peak_freq_Hz': 0.0, 'peak_amplitude': 0.0, 'bandwidth_Hz': 0.0}
+    
+    peak_idx = int(np.argmax(mag))
+    peak_freq = float(freqs[peak_idx])
+    peak_amp = float(mag[peak_idx])
+    
+    # Estimate bandwidth: find frequencies where mag > peak_amp/2
+    half_max = peak_amp / 2.0
+    above_half = np.where(mag > half_max)[0]
+    if len(above_half) > 1:
+        bw = float(freqs[above_half[-1]] - freqs[above_half[0]])
+    else:
+        bw = 0.0
+    
+    return {
+        'peak_freq_Hz': peak_freq,
+        'peak_amplitude': peak_amp,
+        'bandwidth_Hz': bw,
+    }
