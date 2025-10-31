@@ -2,6 +2,7 @@
   "observer_distance_m": 10.0,
   "use_tt_projection": true,
   "include_pair_losses": false,
+  "birefringence_feedback": false,
   "source": {
     "type": "interfering_pulses",
     "E0_Vpm": 1000000000000000.0,

@@ -61,8 +61,10 @@ python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.
   - RMS strain (time-averaged magnitude)
   - Average GW power
   - Efficiency metrics: P_GW/P_in and h per Joule
+  - Frequency spectrum: dominant frequency, amplitude, bandwidth via FFT
 - You can save results to JSON by adding `"output_json": "path/to/results.json"` in the config.
 - Toggle pair-production losses in the time evolution via `"include_pair_losses": true` (uses a uniform drain based on Schwinger rate at effective field).
+- Toggle birefringence feedback via `"birefringence_feedback": true` (first-order Δn modulation of local energy density).
 
 ## Physics Background
 
