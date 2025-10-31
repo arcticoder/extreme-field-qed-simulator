@@ -75,9 +75,22 @@ def analyze_group(df: pd.DataFrame, xcol: str, ycol: str) -> Dict[str, Any]:
             {xcol: float(x_sorted[i]), ycol: float(y_sorted[i]), "fit": float(y_fit[i]), "factor": float(factors[i])}
             for i in outlier_idx
         ]
+        
+        # Anomaly score: combination of non-monotonicity penalty + RMS residual
+        # Score = (monotonicity_penalty) + (rms_log_residual)
+        # Higher score = more anomalous
+        monotonicity_penalty = 0.0 if monotonic else 10.0
+        log_residuals = np.log10(factors)  # log10(y_observed / y_fit)
+        rms_log_residual = float(np.sqrt(np.mean(log_residuals ** 2)))
+        anomaly_score = monotonicity_penalty + rms_log_residual
+        
+        report["anomaly_score"] = anomaly_score
+        report["rms_log_residual"] = rms_log_residual
     else:
         report["outliers_indices"] = []
         report["outliers_points"] = []
+        report["anomaly_score"] = float('nan')
+        report["rms_log_residual"] = float('nan')
 
     return report
 
@@ -107,6 +120,15 @@ def format_report(report: Dict[str, Any], xlabel: str, ylabel: str) -> str:
         lines.append(header)
         analysis = g["analysis"]
         lines.append(f"  Monotonic non-decreasing ({ylabel} vs {xlabel}): {analysis['monotonic_non_decreasing']}")
+        
+        # Anomaly score
+        score = analysis.get("anomaly_score")
+        if score is not None and np.isfinite(score):
+            lines.append(f"  Anomaly score: {score:.3f} (higher = more anomalous)")
+            lines.append(f"    - RMS log residual: {analysis.get('rms_log_residual', 0):.3f}")
+        else:
+            lines.append("  Anomaly score: N/A (insufficient data)")
+        
         n = analysis.get("power_law_n")
         a = analysis.get("power_law_a")
         if n is not None:
