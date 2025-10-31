@@ -14,6 +14,12 @@ import numpy as np
 from typing import Dict, Tuple, Optional
 from dataclasses import dataclass
 
+try:
+    from .detector_noise import DETECTOR_NOISE_CURVES, matched_filter_snr
+    HAS_NOISE_CURVES = True
+except ImportError:
+    HAS_NOISE_CURVES = False
+
 
 @dataclass
 class DetectorSensitivity:
@@ -105,6 +111,38 @@ def snr_estimate(h_signal: float, h_noise: float, integration_time: float,
     Returns: estimated SNR
     """
     return (h_signal / h_noise) * np.sqrt(integration_time * bandwidth)
+
+
+def snr_from_noise_curve(h_timeseries: np.ndarray, dt: float, detector_name: str,
+                        integration_time: float = 1.0) -> float:
+    """Compute matched-filter SNR using real detector noise curves.
+    
+    h_timeseries: strain time series (can be full tensor; will use trace)
+    dt: time step [s]
+    detector_name: detector name (must be in DETECTOR_NOISE_CURVES)
+    integration_time: observation time [s]
+    
+    Returns: SNR from matched filtering against detector noise
+    """
+    if not HAS_NOISE_CURVES:
+        raise ImportError("detector_noise module not available; cannot compute noise-curve SNR")
+    
+    # Extract scalar strain (trace or specific component)
+    if h_timeseries.ndim > 1:
+        # Assume (..., 3, 3) tensor; take trace
+        h_scalar = np.trace(h_timeseries, axis1=-2, axis2=-1)
+    else:
+        h_scalar = h_timeseries
+    
+    # FFT of strain signal
+    N = len(h_scalar)
+    h_fft = np.fft.rfft(h_scalar)
+    freqs = np.fft.rfftfreq(N, dt)
+    
+    # Use matched filter SNR
+    snr = matched_filter_snr(h_fft, freqs, detector_name, integration_time)
+    
+    return snr
 
 
 def is_detectable(h_rms: float, freq_peak: float, detector: DetectorSensitivity,

@@ -1,0 +1,58 @@
+# Mini sweep for quick validation (3 points, coarse grid)
+
+test_mini_sweep:
+  description: "Quick validation: 3-point E0 sweep with minimal resolution"
+  
+  geometry:
+    type: "colliding_pulses"
+    parameters:
+      E0: 1.0e14  # Will be swept
+      waist: 5.0e-6
+      wavelength: 800.0e-9
+      pulse_duration: 10.0e-15
+      collision_delay: 0.0
+      polarization: "linear"
+  
+  grid:
+    x_min: -15.0e-6
+    x_max: 15.0e-6
+    nx: 15
+    y_min: -15.0e-6
+    y_max: 15.0e-6
+    ny: 15
+    z_min: -15.0e-6
+    z_max: 15.0e-6
+    nz: 15
+  
+  time_evolution:
+    t_start: -10.0e-15
+    t_end: 10.0e-15
+    nt: 21
+  
+  physics:
+    heisenberg_euler: true
+    pair_production: false
+    qed_stress_energy: true
+  
+  gravitational:
+    observer_distances: [10.0]  # Just one distance
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    ansatze: ["field_invariant_F2", "axion_like"]
+    kappa_scan: false
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    quantum_sensor: 1.0e-30
+  
+  sweep_parameter: "geometry.parameters.E0"
+  sweep_values: [5.0e13, 1.0e14, 2.0e14]  # Just 3 points
+  
+  output:
+    sweep_dir: "results/sweeps/test_mini"
+    save_fields: false
+    save_quadrupole: true
+    save_strain: true
+    save_metrics: true

@@ -130,6 +130,123 @@ def photon_number_coupling_ansatz(E: np.ndarray, B: np.ndarray, omega: float, ka
     return kappa * n_gamma
 
 
+def axion_like_ansatz(E: np.ndarray, B: np.ndarray, kappa: float = 1.0) -> np.ndarray:
+    """Axion-like particle (ALP) parity-odd coupling: F ∝ E·B.
+    
+    Motivation: Axion-photon coupling g_aγγ a F F̃ where F̃^μν = (1/2)ε^μνρσ F_ρσ.
+    In 3+1 form: ℒ_int ∝ g_aγγ a E·B, with a = axion field.
+    
+    For constant axion background or oscillating a(t), this produces an effective
+    stress-energy contribution. Parity-violating (pseudoscalar).
+    
+    Dimensionally: [κ] ~ [g_aγγ × a] where g_aγγ ~ 1/GeV and a ~ field amplitude.
+    
+    E: (N,3) electric field [V/m]
+    B: (N,3) magnetic field [T]
+    kappa: effective coupling strength [varies; typically set to match g_aγγ constraints]
+    Returns: (N,) parity-odd energy density contribution [J/m³]
+    
+    Notes:
+    - Standard constraints: g_aγγ < 10^-10 GeV^-1 from CAST, ADMX, helioscopes
+    - For photon-photon scattering signatures, map κ to g_aγγ via dimensional analysis
+    """
+    E = np.asarray(E, dtype=float)
+    B = np.asarray(B, dtype=float)
+    
+    # E·B pseudoscalar (odd under parity)
+    E_dot_B = np.sum(E * B, axis=-1)
+    
+    # Dimensionally: kappa * E·B has units of [κ][V·T/m²]
+    # To get energy density [J/m³], need [κ] = [J·m/(V·T)]
+    # For now, return raw E·B scaled by kappa; user must set kappa with correct units
+    return kappa * E_dot_B
+
+
+def dilaton_like_ansatz(E: np.ndarray, B: np.ndarray, kappa: float = 1.0) -> np.ndarray:
+    """Dilaton-like scalar coupling to trace of stress-energy: F ∝ T^μ_μ.
+    
+    Motivation: Scalar-tensor theories (Brans-Dicke, dilaton gravity) couple a scalar φ
+    to the trace of T^μν. For EM fields, T^μ_μ = 0 in vacuum, BUT with QED corrections
+    (Heisenberg-Euler) or in media, trace ≠ 0.
+    
+    In QED: ⟨T^μ_μ⟩ ~ (α/π) F² (conformal anomaly contribution)
+    
+    Here we model effective coupling: κ φ T^μ_μ where φ ~ scalar field background.
+    
+    For pure EM in vacuum: T^μ_μ = T^0_0 - T^i_i = u - (σ_xx + σ_yy + σ_zz)
+    Maxwell stress tensor is traceless → T^μ_μ = 0 classically.
+    Non-zero contribution requires QED loop corrections or modified dispersion.
+    
+    E: (N,3) electric field [V/m]
+    B: (N,3) magnetic field [T]
+    kappa: scalar coupling strength [dimensionless or set by scalar VEV]
+    Returns: (N,) trace coupling contribution [J/m³]
+    
+    Notes:
+    - In pure EM, this is zero; include HE corrections for non-trivial result
+    - Use this to test sensitivity to scalar-tensor modifications
+    """
+    E = np.asarray(E, dtype=float)
+    B = np.asarray(B, dtype=float)
+    
+    # Compute classical EM stress-energy trace (should be ~0, but keep for QED extensions)
+    E2 = np.sum(E**2, axis=-1)
+    B2 = np.sum(B**2, axis=-1)
+    
+    u = 0.5 * (epsilon0 * E2 + B2 / mu0)  # Energy density
+    
+    # For Maxwell, pressure terms cancel → trace = 0
+    # Include small QED correction estimate: δ(trace) ~ (α/π)(1/E_s²)(E² + c²B²)²
+    alpha = 1.0 / 137.0
+    E_s = 1.3e18  # Schwinger field [V/m]
+    
+    QED_trace_correction = (alpha / np.pi) * (1.0 / E_s**2) * (E2 + (c * B2)**2)
+    
+    # Total trace (classical + QED)
+    trace = QED_trace_correction  # Classical part is zero
+    
+    return kappa * trace
+
+
+def chern_simons_like_ansatz(E: np.ndarray, B: np.ndarray, A: np.ndarray | None = None,
+                             kappa: float = 1.0) -> np.ndarray:
+    """Chern-Simons-like parity-violating coupling.
+    
+    Motivation: Lorentz-violating extensions (SME, κ-framework) can include terms like
+        ℒ_CS ~ k^μ ε_μνρσ A^ν F^ρσ
+    where k^μ is a fixed background 4-vector (spontaneous Lorentz violation).
+    
+    In 3+1 decomposition: ℒ_CS ~ k⁰ A·(∇×E) + k·(...) [spatial and temporal parts]
+    
+    For simplicity, use F ∝ A·(E×direction) as proxy for CS-type coupling.
+    Proper implementation requires vector potential A and preferred direction k.
+    
+    E: (N,3) electric field [V/m]
+    B: (N,3) magnetic field [T]
+    A: (N,3) vector potential [V·s/m]; optional (if None, use B as proxy)
+    kappa: CS coupling strength [units depend on k^μ normalization]
+    Returns: (N,) CS-like contribution [J/m³]
+    
+    Notes:
+    - SME bounds: |k^μ| < 10^-15 to 10^-32 depending on sector and test
+    - This is a simplified proxy; full CS requires A and integration by parts
+    """
+    E = np.asarray(E, dtype=float)
+    B = np.asarray(B, dtype=float)
+    
+    if A is None:
+        # Use B as proxy for ∇×A when vector potential not available
+        # CS-like: k·B (assuming k is along z-direction for simplicity)
+        k_direction = np.array([0.0, 0.0, 1.0])
+        coupling_density = np.sum(B * k_direction, axis=-1)
+    else:
+        A = np.asarray(A, dtype=float)
+        # A·B (simplified CS-like term)
+        coupling_density = np.sum(A * B, axis=-1)
+    
+    return kappa * coupling_density
+
+
 def apply_anomalous_coupling(T00_EM: np.ndarray, coupling: AnomalousCoupling, 
                              fields: Dict[str, np.ndarray]) -> np.ndarray:
     """Apply anomalous coupling to EM stress-energy.
@@ -239,5 +356,26 @@ PREDEFINED_COUPLINGS = {
         functional=photon_number_coupling_ansatz,
         description="Coupling to coherent photon number density",
         units="J·s"
+    ),
+    "axion_like": AnomalousCoupling(
+        name="AxionLike",
+        kappa=1.0,
+        functional=axion_like_ansatz,
+        description="Parity-odd E·B coupling (ALP-photon interaction)",
+        units="J·m/(V·T) ~ g_aγγ × a_0"
+    ),
+    "dilaton_like": AnomalousCoupling(
+        name="DilatonLike",
+        kappa=1.0,
+        functional=dilaton_like_ansatz,
+        description="Scalar coupling to stress-energy trace (with QED corrections)",
+        units="[dimensionless or scalar VEV]"
+    ),
+    "chern_simons_like": AnomalousCoupling(
+        name="ChernSimonsLike",
+        kappa=1.0,
+        functional=lambda E, B, kappa, A=None: chern_simons_like_ansatz(E, B, A, kappa),
+        description="Parity-violating Lorentz-violating coupling (SME-like)",
+        units="[depends on k^μ; typically dimensionless or 1/GeV]"
     ),
 }

@@ -367,8 +367,237 @@ def main():
                     print(f"    {detector}: κ < {kappa:.3e}")
     
     elif args.sweep:
-        print("Parameter sweep functionality not yet implemented")
-        print("Use --experiment to run individual configurations")
+        print(f"\n{'='*60}")
+        print(f"PARAMETER SWEEP: {args.sweep}")
+        print(f"{'='*60}\n")
+        
+        sweep_config = load_experiment_config(args.config, args.sweep)
+        sweep_results = run_parameter_sweep(sweep_config)
+        
+        # Save consolidated summary
+        output_dir = Path(sweep_config.get('output', {}).get('sweep_dir', 'results/sweeps'))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        summary_csv = output_dir / f"{args.sweep}_summary.csv"
+        sweep_results['summary'].to_csv(summary_csv, index=False)
+        print(f"\nSummary saved to {summary_csv}")
+        
+        # Quick visualization
+        if sweep_results['summary'].shape[0] > 1:
+            plot_sweep_summary(sweep_results['summary'], 
+                             sweep_config.get('sweep_parameter', 'parameter'),
+                             output_dir / f"{args.sweep}_plots.png")
+
+
+def run_parameter_sweep(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute parameter sweep over a grid of values.
+    
+    config: sweep configuration with 'sweep_parameter' and 'sweep_values'
+    Returns: dict with 'runs' (list of results) and 'summary' (pandas DataFrame)
+    """
+    import pandas as pd
+    
+    sweep_param = config['sweep_parameter']
+    sweep_values = config['sweep_values']
+    
+    # Convert to float if needed (YAML scientific notation bug)
+    sweep_values = [float(v) if isinstance(v, str) else v for v in sweep_values]
+    
+    base_config = config.copy()
+    
+    print(f"Sweeping {sweep_param} over {len(sweep_values)} values")
+    print(f"Range: {min(sweep_values):.3e} to {max(sweep_values):.3e}\n")
+    
+    all_runs = []
+    summary_rows = []
+    
+    for i, value in enumerate(sweep_values):
+        print(f"[{i+1}/{len(sweep_values)}] {sweep_param} = {value:.3e}")
+        
+        # Deep copy and update parameter
+        run_config = update_sweep_parameter(base_config, sweep_param, value)
+        run_config['name'] = f"{config['name']}_sweep_{i}"
+        
+        # Run experiment
+        try:
+            results = run_experiment(run_config)
+            all_runs.append(results)
+            
+            # Extract summary metrics
+            row = {'sweep_param': sweep_param, 'sweep_value': value}
+            
+            if 'gravitational' in results:
+                for obs_key, obs_data in results['gravitational'].items():
+                    row[f'{obs_key}_h_rms'] = obs_data['h_rms']
+                    row[f'{obs_key}_h_max'] = obs_data['h_max']
+                    row[f'{obs_key}_P_avg'] = obs_data['P_avg']
+                    row[f'{obs_key}_freq_peak'] = obs_data.get('frequency_spectrum_peak_freq_Hz', 0.0)
+            
+            if 'anomalous' in results:
+                for ansatz, ansatz_data in results['anomalous'].items():
+                    for detector, kappa in ansatz_data['kappa_constraints'].items():
+                        row[f'kappa_{ansatz}_{detector}'] = kappa
+            
+            summary_rows.append(row)
+            
+            # Save individual HDF5
+            output_dir = Path(run_config.get('output', {}).get('sweep_dir', 'results/sweeps'))
+            output_dir.mkdir(parents=True, exist_ok=True)
+            hdf5_path = output_dir / f"{run_config['name']}.h5"
+            save_results_hdf5(results, hdf5_path)
+            
+        except Exception as e:
+            print(f"  ERROR: {e}")
+            summary_rows.append({'sweep_param': sweep_param, 'sweep_value': value, 'error': str(e)})
+    
+    summary_df = pd.DataFrame(summary_rows)
+    
+    return {'runs': all_runs, 'summary': summary_df, 'config': config}
+
+
+def update_sweep_parameter(config: Dict, param_path: str, value: float) -> Dict:
+    """Update a nested parameter in config dict.
+    
+    param_path: dot-separated path like 'geometry.parameters.E0'
+    value: new value to set
+    """
+    import copy
+    new_config = copy.deepcopy(config)
+    
+    keys = param_path.split('.')
+    target = new_config
+    
+    for key in keys[:-1]:
+        target = target[key]
+    
+    target[keys[-1]] = value
+    
+    return new_config
+
+
+def plot_sweep_summary(summary_df, sweep_param: str, save_path: str):
+    """Generate quick visualization of sweep results."""
+    import matplotlib.pyplot as plt
+    
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    
+    x = summary_df['sweep_value'].values
+    
+    # h_rms
+    ax = axes[0, 0]
+    for col in summary_df.columns:
+        if 'h_rms' in col:
+            ax.loglog(x, summary_df[col].values, 'o-', label=col)
+    ax.set_xlabel(sweep_param)
+    ax.set_ylabel('h_rms')
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    
+    # P_avg
+    ax = axes[0, 1]
+    for col in summary_df.columns:
+        if 'P_avg' in col:
+            ax.loglog(x, summary_df[col].values, 's-', label=col)
+    ax.set_xlabel(sweep_param)
+    ax.set_ylabel('P_avg [W]')
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    
+    # κ constraints (pick one detector, all ansätze)
+    ax = axes[1, 0]
+    for col in summary_df.columns:
+        if 'kappa_' in col and 'LIGO' in col:
+            ax.loglog(x, summary_df[col].values, '^-', label=col.replace('kappa_', '').replace('_LIGO', ''))
+    ax.set_xlabel(sweep_param)
+    ax.set_ylabel('κ_required (LIGO)')
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    
+    # Peak frequency
+    ax = axes[1, 1]
+    for col in summary_df.columns:
+        if 'freq_peak' in col:
+            ax.semilogx(x, summary_df[col].values, 'd-', label=col)
+    ax.set_xlabel(sweep_param)
+    ax.set_ylabel('Peak Frequency [Hz]')
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    fig.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"Sweep plots saved to {save_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run extreme-field QED + gravitational coupling experiments"
+    )
+    parser.add_argument('--config', required=True, help='Path to YAML config file')
+    parser.add_argument('--experiment', help='Experiment name to run')
+    parser.add_argument('--sweep', help='Parameter sweep name to run')
+    parser.add_argument('--list', action='store_true', help='List available experiments')
+    
+    args = parser.parse_args()
+    
+    if args.list:
+        print("Listing available experiments in", args.config)
+        with open(args.config, 'r') as f:
+            docs = list(yaml.safe_load_all(f))
+        for doc in docs:
+            if doc:
+                for key in doc.keys():
+                    print(f"  - {key}")
+        return
+    
+    if not args.experiment and not args.sweep:
+        print("Error: Must specify either --experiment or --sweep")
+        return
+    
+    if args.experiment:
+        config = load_experiment_config(args.config, args.experiment)
+        results = run_experiment(config)
+        
+        output_file = config.get('output', {}).get('hdf5_path', config.get('output', {}).get('hdf5_file', f'results/{args.experiment}.h5'))
+        save_results_hdf5(results, output_file)
+        
+        print(f"\n{'='*60}")
+        print("EXPERIMENT SUMMARY")
+        print(f"{'='*60}")
+        print(f"Name: {config['name']}")
+        if 'gravitational' in results:
+            for key, data in results['gravitational'].items():
+                print(f"\n{key}:")
+                print(f"  h_rms = {data['h_rms']:.3e}")
+                print(f"  P_avg = {data['P_avg']:.3e} W")
+        
+        if 'anomalous' in results:
+            print(f"\nAnomалous Coupling Constraints:")
+            for ansatz, data in results['anomalous'].items():
+                print(f"\n  {ansatz}:")
+                for detector, kappa in data['kappa_constraints'].items():
+                    print(f"    {detector}: κ < {kappa:.3e}")
+    
+    elif args.sweep:
+        print(f"\n{'='*60}")
+        print(f"PARAMETER SWEEP: {args.sweep}")
+        print(f"{'='*60}\n")
+        
+        sweep_config = load_experiment_config(args.config, args.sweep)
+        sweep_results = run_parameter_sweep(sweep_config)
+        
+        # Save consolidated summary
+        output_dir = Path(sweep_config.get('output', {}).get('sweep_dir', 'results/sweeps'))
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        summary_csv = output_dir / f"{args.sweep}_summary.csv"
+        sweep_results['summary'].to_csv(summary_csv, index=False)
+        print(f"\nSummary saved to {summary_csv}")
+        
+        # Quick visualization
+        if sweep_results['summary'].shape[0] > 1:
+            plot_sweep_summary(sweep_results['summary'], 
+                             sweep_config.get('sweep_parameter', 'parameter'),
+                             output_dir / f"{args.sweep}_plots.png")
 
 
 if __name__ == '__main__':

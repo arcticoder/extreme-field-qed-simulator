@@ -1,0 +1,181 @@
+# Parameter sweep configurations for systematic discovery
+
+sweep_E0_colliding_pulses:
+  description: "Energy sweep: vary peak field E0 in colliding Gaussian pulses"
+  
+  # Base configuration (inherited from experiment_1 pattern)
+  geometry:
+    type: "colliding_pulses"
+    parameters:
+      E0: 1.0e14  # Will be swept over
+      waist: 5.0e-6
+      wavelength: 800.0e-9
+      pulse_duration: 10.0e-15
+      collision_delay: 0.0
+      polarization: "linear"
+  
+  grid:
+    x_min: -20.0e-6
+    x_max: 20.0e-6
+    nx: 31
+    y_min: -20.0e-6
+    y_max: 20.0e-6
+    ny: 31
+    z_min: -20.0e-6
+    z_max: 20.0e-6
+    nz: 31
+  
+  time_evolution:
+    t_start: -15.0e-15
+    t_end: 15.0e-15
+    nt: 51
+  
+  physics:
+    heisenberg_euler: true
+    pair_production: true
+    qed_stress_energy: true
+  
+  gravitational:
+    observer_distances: [1.0, 10.0, 100.0]
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    ansatze: ["vector_potential_squared", "field_invariant_F2", "axion_like", "dilaton_like"]
+    kappa_scan: false
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    aLIGO: 1.0e-22
+    Einstein_Telescope: 1.0e-23
+    quantum_sensor: 1.0e-30
+  
+  # Sweep specification
+  sweep_parameter: "geometry.parameters.E0"
+  sweep_values: [1.0e13, 3.0e13, 1.0e14, 3.0e14, 1.0e15, 3.0e15, 1.0e16]  # 10 TV/m to 10 PV/m
+  
+  output:
+    sweep_dir: "results/sweeps/E0_colliding_pulses"
+    save_fields: false
+    save_quadrupole: true
+    save_strain: true
+    save_metrics: true
+
+---
+
+sweep_waist_colliding_pulses:
+  description: "Focal spot size sweep: vary waist parameter"
+  
+  geometry:
+    type: "colliding_pulses"
+    parameters:
+      E0: 1.0e15  # Fixed at 1 PV/m
+      waist: 1.0e-6  # Will be swept
+      wavelength: 800.0e-9
+      pulse_duration: 10.0e-15
+      collision_delay: 0.0
+      polarization: "linear"
+  
+  grid:
+    x_min: -30.0e-6
+    x_max: 30.0e-6
+    nx: 31
+    y_min: -30.0e-6
+    y_max: 30.0e-6
+    ny: 31
+    z_min: -30.0e-6
+    z_max: 30.0e-6
+    nz: 31
+  
+  time_evolution:
+    t_start: -20.0e-15
+    t_end: 20.0e-15
+    nt: 51
+  
+  physics:
+    heisenberg_euler: true
+    pair_production: true
+    qed_stress_energy: true
+  
+  gravitational:
+    observer_distances: [1.0, 10.0, 100.0]
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    ansatze: ["field_invariant_F2", "axion_like"]
+    kappa_scan: false
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    aLIGO: 1.0e-22
+    quantum_sensor: 1.0e-30
+  
+  sweep_parameter: "geometry.parameters.waist"
+  sweep_values: [0.5e-6, 1.0e-6, 2.0e-6, 5.0e-6, 10.0e-6, 20.0e-6]  # 0.5 to 20 μm
+  
+  output:
+    sweep_dir: "results/sweeps/waist_colliding_pulses"
+    save_fields: false
+    save_quadrupole: true
+    save_strain: true
+    save_metrics: true
+
+---
+
+sweep_Q_cavity:
+  description: "Cavity Q-factor sweep: ultra-high-Q photon reservoirs"
+  
+  geometry:
+    type: "cavity_mode"
+    parameters:
+      mode_numbers: [1, 1, 1]
+      cavity_length: 0.1  # 10 cm
+      Q_factor: 1.0e6  # Will be swept
+      stored_energy: 1000.0  # 1 kJ
+      modulation_freq: 1000.0  # 1 kHz modulation
+  
+  grid:
+    x_min: -0.05
+    x_max: 0.05
+    nx: 21
+    y_min: -0.05
+    y_max: 0.05
+    ny: 21
+    z_min: -0.05
+    z_max: 0.05
+    nz: 21
+  
+  time_evolution:
+    t_start: 0.0
+    t_end: 1.0e-6  # 1 μs
+    nt: 101
+  
+  physics:
+    heisenberg_euler: true
+    pair_production: false
+    qed_stress_energy: true
+  
+  gravitational:
+    observer_distances: [10.0, 100.0, 1000.0]
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    ansatze: ["photon_number", "field_invariant_F2"]
+    kappa_scan: false
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    LISA: 1.0e-20
+    quantum_sensor: 1.0e-30
+  
+  sweep_parameter: "geometry.parameters.Q_factor"
+  sweep_values: [1.0e5, 1.0e6, 1.0e7, 1.0e8, 1.0e9]  # Q from 10^5 to 10^9
+  
+  output:
+    sweep_dir: "results/sweeps/Q_cavity"
+    save_fields: false
+    save_quadrupole: true
+    save_strain: true
+    save_metrics: true
