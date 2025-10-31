@@ -7,6 +7,7 @@
     "dt_s": 1e-15,
     "steps": 200,
     "use_tt_projection": true,
+    "include_pair_losses": false,
     "source": {
       "type": "gaussian_beam",
       "wavelength_m": 800e-9,

@@ -9,7 +9,7 @@ This module provides a truncated n=1 approximation and an optional series sum.
 """
 from __future__ import annotations
 import numpy as np
-from .constants import e_charge, hbar, c, E_s
+from .constants import e_charge, hbar, c, E_s, me
 
 
 _def_prefactor = (e_charge**2) / (4.0 * np.pi**3 * hbar**2 * c)
@@ -31,3 +31,14 @@ def expected_pairs(E0: float, volume: float, duration: float, n_terms: int = 1) 
     """
     w = schwinger_rate(E0, n_terms=n_terms)
     return float(w * volume * duration)
+
+
+def energy_loss_power(E0: float, volume: float, n_terms: int = 1) -> float:
+    """Approximate energy loss power to pair production [W] in a uniform field.
+
+    Each e+e- pair at minimum carries rest energy 2 m_e c^2. Neglects kinetic energy and field work.
+    P_loss ≈ w(E) * volume * (2 m_e c^2)
+    """
+    w = schwinger_rate(E0, n_terms=n_terms)
+    pair_energy = 2.0 * me * c**2
+    return float(w * volume * pair_energy)

@@ -11,19 +11,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from efqs.em_sources import make_grid, interfering_pulses_energy, rotating_quadrupole_energy, gaussian_beam_energy
 from efqs.gravitational_coupling import quadrupole_moment, strain_far_field, radiated_power_from_quadrupole
-from efqs.cli_utils import load_config
-
-
-def load_config(path: str) -> Dict[str, Any]:
-    if path.endswith('.json'):
-        with open(path, 'r') as f:
-            return json.load(f)
-    try:
-        import yaml
-        with open(path, 'r') as f:
-            return yaml.safe_load(f)
-    except Exception as e:
-        raise SystemExit(f"Failed to load config {path}: {e}")
+from efqs.metrics import coupling_metrics
+from efqs.pair_production import energy_loss_power
+from efqs.cli_utils import load_config, save_results_json
 
 
 def main():
@@ -37,6 +27,7 @@ def main():
     obs_R = float(cfg.get("observer_distance_m", 10.0))
     use_tt = bool(cfg.get("use_tt_projection", True))
     include_qed = bool(cfg.get("include_qed_corrections", False))
+    include_pair_losses = bool(cfg.get("include_pair_losses", False))
 
     grid = make_grid(L=float(cfg.get("box_size_m", 0.1)), N=int(cfg.get("grid_points", 21)))
     dt = float(cfg.get("dt_s", 1e-12))
@@ -45,6 +36,7 @@ def main():
     # Build time series of quadrupole from chosen source
     src = cfg.get("source", {"type": "interfering_pulses"})
     Q_list = []
+    u_series = []
     for n in range(steps):
         t = n * dt
         if src["type"] == "interfering_pulses":
@@ -66,13 +58,34 @@ def main():
         else:
             raise SystemExit(f"Unknown source type: {src['type']}")
         # Flatten for quadrupole; include cell volume via scaling of rho: multiply by dV when summing later
+        # Apply pair production loss (uniform approximation) by scaling energy density
+        if include_pair_losses:
+            # Estimate loss power from field amplitude; approximate volume as simulation box size^3
+            box_V = (grid.dx * len(grid.x)) * (grid.dy * len(grid.y)) * (grid.dz * len(grid.z))
+            # Use E0 if available; otherwise derive an effective E from intensity (I = u c) -> E ~ sqrt(2u/epsilon0)
+            try:
+                E_eff = E0
+            except NameError:
+                # average u to estimate E
+                u_mean = float(np.mean(u))
+                from efqs.constants import epsilon0
+                E_eff = float(np.sqrt(2.0 * u_mean / epsilon0))
+            P_loss = energy_loss_power(E_eff, volume=box_V, n_terms=1)
+            # Reduce total energy by P_loss*dt: distribute proportionally over grid
+            E_total = float(np.sum(u) * grid.dV)
+            if E_total > 0.0:
+                frac = max(0.0, 1.0 - (P_loss * dt) / E_total)
+                u *= frac
+
         pos = grid.positions_flat
         u_flat = u.reshape(-1)
         # quadrupole currently sums rho*..., where rho = u/c^2; include dV by scaling rho
         Q = quadrupole_moment(pos, u_flat * grid.dV)
         Q_list.append(Q)
+        u_series.append(u)
 
     Q_t = np.stack(Q_list, axis=0)
+    u_t = np.stack(u_series, axis=0)
 
     if enable_gravity:
         h_t = strain_far_field(Q_t, dt=dt, R=obs_R, use_tt=use_tt)
@@ -80,8 +93,31 @@ def main():
         qed_str = " (with QED corrections)" if include_qed else ""
         tt_str = " (TT-projected)" if use_tt else ""
         print(f"Computed strain h_ij(t){tt_str} with shape {h_t.shape} and GW power time series with shape {P_t.shape}.{qed_str}")
-        print(f"RMS strain magnitude ~ {np.sqrt(np.mean(h_t**2)):.3e}")
-        print(f"Average P_GW ~ {np.mean(P_t):.3e} W")
+        rms_h = float(np.sqrt(np.mean(h_t**2)))
+        avg_P = float(np.mean(P_t))
+        print(f"RMS strain magnitude ~ {rms_h:.3e}")
+        print(f"Average P_GW ~ {avg_P:.3e} W")
+        # Efficiency metrics
+        m = coupling_metrics(h_t, P_t, u_t, dV=grid.dV, dt=dt)
+        print("Coupling metrics:")
+        for k, v in m.items():
+            print(f"  {k}: {v:.3e}")
+        # Optional JSON output
+        out_path = cfg.get("output_json")
+        if out_path:
+            results = {
+                "observer_distance_m": obs_R,
+                "use_tt_projection": use_tt,
+                "include_pair_losses": include_pair_losses,
+                "source": src,
+                "steps": steps,
+                "dt_s": dt,
+                "rms_strain": rms_h,
+                "avg_P_GW_W": avg_P,
+                "metrics": m,
+            }
+            save_results_json(results, out_path)
+            print(f"Saved results to {out_path}")
         if args.plot:
             t = np.arange(steps) * dt
             # Plot trace-free diagonal components as a proxy

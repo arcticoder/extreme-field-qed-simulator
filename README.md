@@ -42,6 +42,7 @@ python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.
 - Quadrupole moment calculation from energy distributions
 - Far-field gravitational strain with proper TT projection
 - Radiated GW power via quadrupole formula
+- Optional pair-production energy-loss channel in time evolution (uniform drain approximation)
 - Multiple source models:
   - Interfering laser pulses (standing waves)
   - Rotating quadrupole hotspots
@@ -54,6 +55,14 @@ python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.
 - Automated parameter sweeps
 - Reusable plotting utilities
 - All tests passing (5/5)
+
+### Coupling Metrics and Outputs
+- The gravity coupling script now computes:
+  - RMS strain (time-averaged magnitude)
+  - Average GW power
+  - Efficiency metrics: P_GW/P_in and h per Joule
+- You can save results to JSON by adding `"output_json": "path/to/results.json"` in the config.
+- Toggle pair-production losses in the time evolution via `"include_pair_losses": true` (uses a uniform drain based on Schwinger rate at effective field).
 
 ## Physics Background
 

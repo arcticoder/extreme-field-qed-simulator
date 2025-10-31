@@ -5,6 +5,9 @@
   "grid_points": 25,
   "dt_s": 1e-15,
   "steps": 400,
+  "use_tt_projection": true,
+  "include_pair_losses": false,
+  "output_json": "examples/interfering_results.json",
   "source": {
     "type": "interfering_pulses",
     "E0_Vpm": 1e15,
