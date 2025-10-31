@@ -1,0 +1,218 @@
+# Example experiment configurations for extreme-field QED + GR coupling studies
+
+# Configuration 1: Colliding ultra-intense pulses (QED regime)
+experiment_1:
+  name: "Colliding PW Pulses - QED Hotspot"
+  description: "Two counter-propagating 1 PW pulses at tight focus to maximize QED effects"
+  
+  geometry:
+    type: "colliding_pulses"
+    parameters:
+      E0: 1.0e16  # V/m (~ 0.1 E_schwinger)
+      waist: 1.0e-6  # 1 μm focal spot
+      wavelength: 800.0e-9  # 800 nm Ti:Sapph
+      pulse_duration: 10.0e-15  # 10 fs
+      collision_delay: 0.0
+      polarization: "orthogonal"  # maximize field invariants
+  
+  grid:
+    box_size: 10.0e-6  # 10 μm box
+    grid_points: [64, 64, 64]
+  
+  time_evolution:
+    t_start: -50.0e-15
+    t_end: 50.0e-15
+    dt: 0.5e-15  # 0.5 fs steps
+  
+  physics:
+    include_heisenberg_euler: true
+    include_pair_production: false  # below threshold
+    include_qed_stress_energy: true
+  
+  gravitational_coupling:
+    enabled: true
+    observer_distances: [1.0, 10.0, 100.0]  # meters
+    use_spectral_derivatives: true
+    use_tt_projection: true
+  
+  anomalous_coupling:
+    enabled: true
+    ansatz: ["vector_potential_squared", "field_invariant_F2", "photon_number"]
+    kappa_scan: [1.0e-10, 1.0e-5, 1.0, 1.0e5]
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    advanced_LIGO: 1.0e-22
+    quantum_sensor_aspirational: 1.0e-30
+  
+  output:
+    hdf5_file: "results/colliding_pulses_qed.h5"
+    save_fields: true
+    save_quadrupole: true
+    save_strain: true
+    save_metrics: true
+
+---
+
+# Configuration 2: High-Q cavity with large photon number
+experiment_2:
+  name: "High-Q Cavity - Coherent Photon Reservoir"
+  description: "Optical cavity with 10^15 photons, modulated quadrupole"
+  
+  geometry:
+    type: "cavity_mode"
+    parameters:
+      mode_numbers: [1, 1, 1]  # Fundamental mode
+      cavity_length: 0.1  # 10 cm
+      Q_factor: 1.0e8  # Ultra-high finesse
+      stored_energy: 1.0e3  # 1 kJ (10^15 optical photons)
+      modulation_freq: 1.0e6  # 1 MHz mechanical modulation
+  
+  grid:
+    box_size: 0.12
+    grid_points: [48, 48, 48]
+  
+  time_evolution:
+    t_start: 0.0
+    t_end: 1.0e-5  # 10 μs
+    dt: 1.0e-9
+  
+  physics:
+    include_heisenberg_euler: true
+    include_pair_production: false
+    include_qed_stress_energy: true
+  
+  gravitational_coupling:
+    enabled: true
+    observer_distances: [1.0, 10.0]
+    use_spectral_derivatives: true
+  
+  anomalous_coupling:
+    enabled: true
+    ansatz: ["photon_number"]
+    kappa_scan: [1.0e-20, 1.0e-15, 1.0e-10]
+  
+  detection_thresholds:
+    tabletop_interferometer: 1.0e-18
+    LIGO: 1.0e-21
+  
+  output:
+    hdf5_file: "results/cavity_photon_reservoir.h5"
+
+---
+
+# Configuration 3: Plasma toroid (macroscopic current quadrupole)
+experiment_3:
+  name: "Plasma Toroid - Rotating Current Quadrupole"
+  description: "Counter-rotating plasma currents with MHz rotation"
+  
+  geometry:
+    type: "plasma_toroid"
+    parameters:
+      major_radius: 0.05  # 5 cm
+      minor_radius: 0.01  # 1 cm
+      current: 1.0e6  # 1 MA
+      rotation_freq: 1.0e6  # 1 MHz
+      direction: "cw"
+  
+  grid:
+    box_size: 0.2
+    grid_points: [40, 40, 40]
+  
+  time_evolution:
+    t_start: 0.0
+    t_end: 5.0e-6
+    dt: 1.0e-9
+  
+  physics:
+    include_heisenberg_euler: false  # Fields too weak
+    include_pair_production: false
+    include_qed_stress_energy: false
+  
+  gravitational_coupling:
+    enabled: true
+    observer_distances: [1.0, 10.0]
+    use_spectral_derivatives: true
+  
+  anomalous_coupling:
+    enabled: true
+    ansatz: ["field_invariant_F2"]
+    kappa_scan: [1.0e-10, 1.0, 1.0e10]
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+  
+  output:
+    hdf5_file: "results/plasma_toroid.h5"
+
+---
+
+# Configuration 4: Rotating asymmetric capacitor (Biefeld-Brown)
+experiment_4:
+  name: "Rotating Capacitor - Brown Geometry"
+  description: "High-voltage rotating asymmetric capacitor with kHz rotation"
+  
+  geometry:
+    type: "rotating_capacitor"
+    parameters:
+      radius: 0.1  # 10 cm
+      separation: 0.01  # 1 cm
+      voltage: 1.0e5  # 100 kV
+      rotation_freq: 1.0e3  # 1 kHz
+      num_sectors: 4  # Quadrupole pattern
+  
+  grid:
+    box_size: 0.25
+    grid_points: [32, 32, 32]
+  
+  time_evolution:
+    t_start: 0.0
+    t_end: 5.0e-3  # 5 ms (several rotations)
+    dt: 1.0e-6
+  
+  physics:
+    include_heisenberg_euler: false
+    include_pair_production: false
+    include_qed_stress_energy: false
+  
+  gravitational_coupling:
+    enabled: true
+    observer_distances: [0.5, 1.0, 5.0]
+    use_spectral_derivatives: true
+  
+  anomalous_coupling:
+    enabled: true
+    ansatz: ["vector_potential_squared", "spatial_gradient"]
+    kappa_scan: [1.0e-5, 1.0, 1.0e5, 1.0e10]
+  
+  detection_thresholds:
+    force_sensor_1nN: 1.0e-20  # Equivalent strain for force measurement
+    torsion_balance: 1.0e-22
+    LIGO: 1.0e-21
+  
+  output:
+    hdf5_file: "results/rotating_capacitor_brown.h5"
+    save_fields: true
+
+---
+
+# Configuration 5: Parameter sweep template
+parameter_sweep:
+  name: "Energy Scan - Colliding Pulses"
+  description: "Sweep pulse energy from 1 mJ to 1 kJ"
+  
+  base_config: "experiment_1"  # Use experiment_1 as template
+  
+  sweep_parameters:
+    - parameter: "geometry.parameters.E0"
+      values: [1.0e14, 5.0e14, 1.0e15, 5.0e15, 1.0e16]
+    
+    - parameter: "geometry.parameters.waist"
+      values: [0.5e-6, 1.0e-6, 2.0e-6, 5.0e-6]
+    
+    - parameter: "geometry.parameters.pulse_duration"
+      values: [5.0e-15, 10.0e-15, 20.0e-15, 50.0e-15]
+  
+  output:
+    sweep_dir: "results/sweeps/energy_scan"
+    summary_file: "results/sweeps/energy_scan_summary.csv"

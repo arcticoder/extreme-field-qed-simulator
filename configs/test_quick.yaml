@@ -1,0 +1,55 @@
+# Quick test experiment for pipeline validation (small grid, short time)
+
+test_quick:
+  description: "Quick test: colliding pulses with minimal resolution for pipeline validation"
+  
+  geometry:
+    type: "colliding_pulses"
+    parameters:
+      E0: 1.0e14  # 100 TV/m (moderate intensity)
+      waist: 5.0e-6  # 5 μm
+      wavelength: 800.0e-9  # 800 nm
+      pulse_duration: 10.0e-15  # 10 fs
+      collision_delay: 0.0
+      polarization: "linear"
+  
+  grid:
+    x_min: -20.0e-6
+    x_max: 20.0e-6
+    nx: 21  # Very coarse for testing
+    y_min: -20.0e-6
+    y_max: 20.0e-6
+    ny: 21
+    z_min: -20.0e-6
+    z_max: 20.0e-6
+    nz: 21
+  
+  time_evolution:
+    t_start: -15.0e-15
+    t_end: 15.0e-15
+    nt: 31  # Just 31 timesteps
+  
+  physics:
+    heisenberg_euler: true
+    pair_production: true
+    qed_stress_energy: true
+  
+  gravitational:
+    observer_distances: [1.0, 10.0]  # Only 2 distances
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    ansatze: ["vector_potential_squared", "field_invariant_F2"]  # Just 2
+    kappa_scan: false
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    quantum_sensor: 1.0e-30
+  
+  output:
+    hdf5_path: "results/test_quick.h5"
+    save_fields: false  # Skip to save space
+    save_quadrupole: true
+    save_strain: true
+    save_metrics: true

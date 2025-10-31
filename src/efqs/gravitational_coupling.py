@@ -73,7 +73,8 @@ def stress_energy_from_fields(E: np.ndarray, B: np.ndarray, include_qed: bool = 
     BB = (1.0 / mu0) * np.einsum('...i,...j->...ij', B, B)
     trace_term = 0.5 * (epsilon0 * E2 + B2 / mu0)
     I = np.eye(3)
-    sigma = EE + BB - np.expand_dims(trace_term, axis=(-1,)) * I
+    # Broadcast trace_term properly: (...,) -> (..., 1, 1) * (3, 3)
+    sigma = EE + BB - trace_term[..., np.newaxis, np.newaxis] * I
 
     return StressEnergy(T00=u, T0i=T0i, Tij=sigma)
 
@@ -114,18 +115,63 @@ def finite_difference(time_series: np.ndarray, dt: float, order: int) -> np.ndar
     raise ValueError("order must be 1,2,3")
 
 
-def strain_far_field(Q_t: np.ndarray, dt: float, R: float, use_tt: bool = True, los: np.ndarray | None = None) -> np.ndarray:
+def spectral_derivative(time_series: np.ndarray, dt: float, order: int) -> np.ndarray:
+    """Compute time derivatives using spectral (FFT) method to reduce noise amplification.
+    
+    Spectral differentiation: d^n/dt^n f(t) = IFFT[(i ω)^n FFT[f(t)]]
+    This is more stable for higher derivatives than repeated finite differences.
+    
+    time_series: (T, ...) array with time on axis 0
+    dt: time step [s]
+    order: derivative order (1, 2, or 3)
+    Returns: derivative array same shape as input
+    """
+    if order not in [1, 2, 3]:
+        raise ValueError("order must be 1, 2, or 3")
+    
+    # Get shape and prepare for FFT
+    original_shape = time_series.shape
+    T = original_shape[0]
+    
+    # Reshape to (T, -1) for easier processing
+    other_dims = np.prod(original_shape[1:])
+    data = time_series.reshape(T, -1)
+    
+    # FFT along time axis
+    fft_data = np.fft.fft(data, axis=0)
+    
+    # Frequency array
+    freqs = np.fft.fftfreq(T, d=dt)
+    omega = 2.0 * np.pi * freqs
+    
+    # Apply derivative in frequency domain: multiply by (i ω)^order
+    omega_factor = (1j * omega) ** order
+    fft_deriv = fft_data * omega_factor[:, np.newaxis]
+    
+    # IFFT back to time domain
+    deriv = np.fft.ifft(fft_deriv, axis=0).real
+    
+    # Reshape back
+    return deriv.reshape(original_shape)
+
+
+def strain_far_field(Q_t: np.ndarray, dt: float, R: float, use_tt: bool = True, 
+                    use_spectral: bool = False, los: np.ndarray | None = None) -> np.ndarray:
     """Compute far-field strain tensor h_ij(t) ≈ (2G/(c^4 R)) d^2 Q_ij/dt^2.
 
     Q_t: (T, 3, 3) quadrupole sequence [kg m^2]
     dt: time step [s]
     R: observer distance [m]
     use_tt: if True, apply transverse-traceless (TT) projection
+    use_spectral: if True, use FFT-based derivatives (more stable for noisy data)
     los: line-of-sight unit vector (3,) for TT projection; defaults to [0,0,1]
     Returns h_t: (T, 3, 3) dimensionless strain tensor.
     """
     G = 6.67430e-11
-    Qdd = finite_difference(Q_t, dt, order=2)
+    if use_spectral:
+        Qdd = spectral_derivative(Q_t, dt, order=2)
+    else:
+        Qdd = finite_difference(Q_t, dt, order=2)
     pref = 2.0 * G / (c**4 * R)
     h = pref * Qdd
     
@@ -165,15 +211,21 @@ def tt_project(h: np.ndarray, n: np.ndarray) -> np.ndarray:
     return h_TT
 
 
-def radiated_power_from_quadrupole(Q_t: np.ndarray, dt: float) -> np.ndarray:
+def radiated_power_from_quadrupole(Q_t: np.ndarray, dt: float, use_spectral: bool = False) -> np.ndarray:
     """Instantaneous GW power via quadrupole formula:
       P(t) = (G/(5 c^5)) <...Q^{(3)}_ij Q^{(3)}_ij...>
     Approximate by contracting the 3rd derivative tensor with itself.
 
+    Q_t: (T, 3, 3) quadrupole time series
+    dt: time step [s]
+    use_spectral: if True, use FFT-based derivatives (recommended for noisy data)
     Returns P(t) [W] as array of length T.
     """
     G = 6.67430e-11
-    Q3 = finite_difference(Q_t, dt, order=3)
+    if use_spectral:
+        Q3 = spectral_derivative(Q_t, dt, order=3)
+    else:
+        Q3 = finite_difference(Q_t, dt, order=3)
     # Contract over i,j
     contracted = np.einsum('tij,tij->t', Q3, Q3)
     P = (G / (5.0 * c**5)) * contracted
