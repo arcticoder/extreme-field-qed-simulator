@@ -25,15 +25,21 @@ class StressEnergy:
     Tij: np.ndarray  # spatial stress tensor [Pa]
 
 
-def stress_energy_from_fields(E: np.ndarray, B: np.ndarray) -> StressEnergy:
+def stress_energy_from_fields(E: np.ndarray, B: np.ndarray, include_qed: bool = False) -> StressEnergy:
     """Compute EM stress–energy components from E,B fields.
 
     E,B shape: (..., 3) with SI units [V/m] and [T]. Returns arrays broadcast to input shape.
+    include_qed: if True, apply Heisenberg-Euler QED corrections to energy density
+    
     Formulas (SI):
       u = T00 = 1/2 (epsilon0 E^2 + B^2/mu0)
       S = (1/mu0) E x B  (Poynting) [W/m^2]
       T0i = S_i / c^2
       sigma_ij = epsilon0 E_i E_j + (1/mu0) B_i B_j - 1/2 delta_ij (epsilon0 E^2 + B^2/mu0)
+    
+    QED correction (Heisenberg-Euler):
+      Delta u ≈ (2/45) (alpha/pi) (1/E_s^2) [(E^2 - c^2 B^2)^2 + 7(c E·B)^2]
+    where E_s is the Schwinger critical field.
     """
     E = np.asarray(E, dtype=float)
     B = np.asarray(B, dtype=float)
@@ -41,6 +47,20 @@ def stress_energy_from_fields(E: np.ndarray, B: np.ndarray) -> StressEnergy:
     E2 = np.sum(E * E, axis=-1)
     B2 = np.sum(B * B, axis=-1)
     u = 0.5 * (epsilon0 * E2 + B2 / mu0)
+    
+    if include_qed:
+        # Import locally to avoid circular dependency
+        from .constants import alpha, E_s
+        # Heisenberg-Euler correction to energy density
+        # F = (B^2 - E^2/c^2)/2, G = E·B/c
+        F = 0.5 * (B2 - E2 / c**2)
+        EB_dot = np.sum(E * B, axis=-1)
+        G = EB_dot / c
+        # Delta u ≈ (2/45)(alpha/pi)(1/E_s^2) * [(2F)^2 + 7(2cG)^2]
+        # Simplify: [(2F)^2 + 7(2cG)^2] = 4F^2 + 28c^2 G^2
+        coeff = (2.0 / 45.0) * (alpha / np.pi) / (E_s**2)
+        delta_u = coeff * (4.0 * F**2 + 28.0 * (c * G)**2)
+        u += delta_u
 
     # Poynting vector
     S = (1.0 / mu0) * np.cross(E, B, axis=-1)
@@ -59,7 +79,7 @@ def stress_energy_from_fields(E: np.ndarray, B: np.ndarray) -> StressEnergy:
 
 
 def quadrupole_moment(positions: np.ndarray, rho_energy: np.ndarray) -> np.ndarray:
-    """Compute mass-energy quadrupole Q_ij = \int rho(x) (x_i x_j - 1/3 r^2 delta_ij) d^3x.
+    r"""Compute mass-energy quadrupole Q_ij = \int rho(x) (x_i x_j - 1/3 r^2 delta_ij) d^3x.
     Here rho(x) = u(x)/c^2 with u = energy density [J/m^3].
 
     positions: (N,3) coordinates [m]
@@ -94,25 +114,55 @@ def finite_difference(time_series: np.ndarray, dt: float, order: int) -> np.ndar
     raise ValueError("order must be 1,2,3")
 
 
-def strain_far_field(Q_t: np.ndarray, dt: float, R: float) -> np.ndarray:
-    """Compute far-field strain tensor h_ij(t) ≈ (2G/(c^4 R)) d^2 Q_ij/dt^2 (traceless-transverse approximation omitted).
+def strain_far_field(Q_t: np.ndarray, dt: float, R: float, use_tt: bool = True, los: np.ndarray | None = None) -> np.ndarray:
+    """Compute far-field strain tensor h_ij(t) ≈ (2G/(c^4 R)) d^2 Q_ij/dt^2.
 
     Q_t: (T, 3, 3) quadrupole sequence [kg m^2]
     dt: time step [s]
     R: observer distance [m]
+    use_tt: if True, apply transverse-traceless (TT) projection
+    los: line-of-sight unit vector (3,) for TT projection; defaults to [0,0,1]
     Returns h_t: (T, 3, 3) dimensionless strain tensor.
     """
-    from .constants import alpha  # not needed; keep import locality minimal
     G = 6.67430e-11
     Qdd = finite_difference(Q_t, dt, order=2)
     pref = 2.0 * G / (c**4 * R)
     h = pref * Qdd
-    # Optional: subtract trace to approximate TT projection (simple approach)
-    tr = np.trace(h, axis1=1, axis2=2) / 3.0
-    h_tt = h.copy()
-    for i in range(3):
-        h_tt[:, i, i] -= tr
-    return h_tt
+    
+    if use_tt:
+        if los is None:
+            los = np.array([0.0, 0.0, 1.0])
+        h = tt_project(h, los)
+    
+    return h
+
+
+def tt_project(h: np.ndarray, n: np.ndarray) -> np.ndarray:
+    """Apply transverse-traceless (TT) projection to a strain tensor h_ij.
+    
+    For a wave propagating along unit vector n, the TT projection is:
+      h^TT_ij = P_ik P_jl h_kl - 1/2 P_ij P_kl h_kl
+    where P_ij = delta_ij - n_i n_j is the transverse projector.
+    
+    h: (..., 3, 3) strain tensor(s)
+    n: (3,) line-of-sight unit vector
+    Returns: (..., 3, 3) TT-projected strain
+    """
+    n = np.asarray(n, dtype=float)
+    n = n / np.linalg.norm(n)  # ensure unit vector
+    
+    # Transverse projector P_ij
+    I = np.eye(3)
+    P = I - np.outer(n, n)
+    
+    # Apply TT projection
+    # h^TT_ij = P_ik P_jl h_kl - 1/2 P_ij (P_kl h_kl)
+    # Using einsum for clarity
+    h_TT = np.einsum('ik,jl,...kl->...ij', P, P, h)
+    trace_term = np.einsum('kl,...kl->...', P, h)
+    h_TT -= 0.5 * np.einsum('ij,...->...ij', P, trace_term)
+    
+    return h_TT
 
 
 def radiated_power_from_quadrupole(Q_t: np.ndarray, dt: float) -> np.ndarray:

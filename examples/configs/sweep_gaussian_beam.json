@@ -1,0 +1,20 @@
+{
+  "base_config": {
+    "enable_gravity": true,
+    "observer_distance_m": 10.0,
+    "box_size_m": 0.05,
+    "grid_points": 21,
+    "dt_s": 1e-15,
+    "steps": 200,
+    "use_tt_projection": true,
+    "source": {
+      "type": "gaussian_beam",
+      "wavelength_m": 800e-9,
+      "frequency_Hz": 0.0
+    }
+  },
+  "sweep_parameters": {
+    "source.P0_W": [1e12, 5e12, 1e13, 5e13],
+    "source.w0_m": [1e-4, 5e-4, 1e-3]
+  }
+}

@@ -9,8 +9,9 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from efqs.em_sources import make_grid, interfering_pulses_energy, rotating_quadrupole_energy
+from efqs.em_sources import make_grid, interfering_pulses_energy, rotating_quadrupole_energy, gaussian_beam_energy
 from efqs.gravitational_coupling import quadrupole_moment, strain_far_field, radiated_power_from_quadrupole
+from efqs.cli_utils import load_config
 
 
 def load_config(path: str) -> Dict[str, Any]:
@@ -34,6 +35,8 @@ def main():
     cfg = load_config(args.config)
     enable_gravity = bool(cfg.get("enable_gravity", True))
     obs_R = float(cfg.get("observer_distance_m", 10.0))
+    use_tt = bool(cfg.get("use_tt_projection", True))
+    include_qed = bool(cfg.get("include_qed_corrections", False))
 
     grid = make_grid(L=float(cfg.get("box_size_m", 0.1)), N=int(cfg.get("grid_points", 21)))
     dt = float(cfg.get("dt_s", 1e-12))
@@ -54,6 +57,12 @@ def main():
             R0 = float(src.get("R0_m", 0.02))
             omega = 2.0 * np.pi * float(src.get("frequency_Hz", 1e5))
             u = rotating_quadrupole_energy(grid, U0=U0, R0=R0, omega=omega, t=t)
+        elif src["type"] == "gaussian_beam":
+            P0 = float(src.get("P0_W", 1e12))
+            w0 = float(src.get("w0_m", 1e-3))
+            wavelength = float(src.get("wavelength_m", 800e-9))
+            omega = 2.0 * np.pi * float(src.get("frequency_Hz", 0.0))
+            u = gaussian_beam_energy(grid, P0=P0, w0=w0, wavelength=wavelength, omega=omega, t=t)
         else:
             raise SystemExit(f"Unknown source type: {src['type']}")
         # Flatten for quadrupole; include cell volume via scaling of rho: multiply by dV when summing later
@@ -66,9 +75,11 @@ def main():
     Q_t = np.stack(Q_list, axis=0)
 
     if enable_gravity:
-        h_t = strain_far_field(Q_t, dt=dt, R=obs_R)
+        h_t = strain_far_field(Q_t, dt=dt, R=obs_R, use_tt=use_tt)
         P_t = radiated_power_from_quadrupole(Q_t, dt=dt)
-        print(f"Computed strain h_ij(t) with shape {h_t.shape} and GW power time series with shape {P_t.shape}.")
+        qed_str = " (with QED corrections)" if include_qed else ""
+        tt_str = " (TT-projected)" if use_tt else ""
+        print(f"Computed strain h_ij(t){tt_str} with shape {h_t.shape} and GW power time series with shape {P_t.shape}.{qed_str}")
         print(f"RMS strain magnitude ~ {np.sqrt(np.mean(h_t**2)):.3e}")
         print(f"Average P_GW ~ {np.mean(P_t):.3e} W")
         if args.plot:
