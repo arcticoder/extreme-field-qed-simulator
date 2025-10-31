@@ -154,3 +154,64 @@ def rotating_capacitor_energy(grid: Grid, V0: float, d: float, R: float, omega: 
     u[active] = 0.5 * epsilon0 * E0**2
     
     return u
+
+
+def plasma_ring_energy(grid: Grid, I0: float, R: float, r_minor: float, omega: float, t: float, direction: str = 'cw') -> np.ndarray:
+    """Counter-rotating plasma ring (toroidal current distribution).
+    
+    Models a toroidal plasma ring of major radius R and minor radius r_minor,
+    carrying current I0, rotating at angular frequency omega.
+    For counter-rotating configurations, call twice with direction='cw' and 'ccw'.
+    
+    The energy density is approximated from the magnetic field energy of a toroidal current loop.
+    For simplicity, we model the energy density from the poloidal magnetic field:
+    B_pol ~ μ0 I / (2π r) where r is distance from the ring center in the poloidal plane.
+    
+    I0: peak current [A]
+    R: major radius of torus [m]
+    r_minor: minor radius (thickness) of torus [m]
+    omega: rotation angular frequency [rad/s]
+    t: time [s]
+    direction: 'cw' (clockwise) or 'ccw' (counter-clockwise) rotation
+    
+    Returns u(x,y,z,t) [J/m^3] energy density.
+    """
+    X, Y, Z = np.meshgrid(grid.x, grid.y, grid.z, indexing='ij')
+    
+    # Rotation angle
+    theta = omega * t
+    if direction == 'ccw':
+        theta = -theta
+    
+    # Ring center rotates in x-y plane
+    ring_x = R * np.cos(theta)
+    ring_y = R * np.sin(theta)
+    ring_z = 0.0
+    
+    # Distance from ring center (toroidal coordinates simplified)
+    # Approximate: distance in poloidal plane (perpendicular to ring)
+    dx = X - ring_x
+    dy = Y - ring_y
+    dz = Z - ring_z
+    
+    # Cylindrical radius from ring centerline
+    r_cyl = np.sqrt(dx**2 + dy**2 + dz**2)
+    
+    # Inside the torus minor radius?
+    inside = r_cyl <= r_minor
+    
+    # Magnetic field magnitude (simplified toroidal approximation)
+    # B ~ μ0 I / (2π r_cyl) for r_cyl < r_minor
+    # Energy density u = B^2 / (2 μ0)
+    B = np.zeros_like(X)
+    epsilon = 1e-9  # avoid division by zero
+    B[inside] = mu0 * I0 / (2.0 * np.pi * (r_cyl[inside] + epsilon))
+    
+    u = B**2 / (2.0 * mu0)
+    
+    # Smooth falloff to avoid sharp edges (Gaussian envelope)
+    envelope = np.exp(-((r_cyl - r_minor/2)**2) / (2.0 * (r_minor/3)**2))
+    u *= envelope
+    
+    return u
+

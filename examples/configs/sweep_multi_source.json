@@ -1,0 +1,27 @@
+{
+  "base_config": {
+    "enable_gravity": true,
+    "observer_distance_m": 10.0,
+    "box_size_m": 0.05,
+    "grid_points": 21,
+    "dt_s": 1e-15,
+    "steps": 100,
+    "use_tt_projection": true,
+    "include_qed_corrections": false,
+    "include_pair_losses": false,
+    "source": {
+      "type": "interfering_pulses",
+      "E0_Vpm": 1e15,
+      "wavelength_m": 800e-9,
+      "frequency_Hz": 3.75e14
+    }
+  },
+  "sweep_parameters": {
+    "source.type": ["interfering_pulses", "gaussian_beam", "plasma_ring"],
+    "use_tt_projection": [true, false],
+    "include_pair_losses": [false, true],
+    "source.E0_Vpm": [5e14, 1e15, 2e15],
+    "source.P0_W": [1e12, 5e12, 1e13],
+    "source.I0_A": [5e5, 1e6, 2e6]
+  }
+}

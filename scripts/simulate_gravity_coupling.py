@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-from efqs.em_sources import make_grid, interfering_pulses_energy, rotating_quadrupole_energy, gaussian_beam_energy
+from efqs.em_sources import make_grid, interfering_pulses_energy, rotating_quadrupole_energy, gaussian_beam_energy, plasma_ring_energy
 from efqs.gravitational_coupling import quadrupole_moment, strain_far_field, radiated_power_from_quadrupole, dominant_frequency
 from efqs.metrics import coupling_metrics
 from efqs.pair_production import energy_loss_power
@@ -28,6 +28,7 @@ def main():
     use_tt = bool(cfg.get("use_tt_projection", True))
     include_qed = bool(cfg.get("include_qed_corrections", False))
     include_pair_losses = bool(cfg.get("include_pair_losses", False))
+    birefringence_feedback = bool(cfg.get("birefringence_feedback", False))
 
     grid = make_grid(L=float(cfg.get("box_size_m", 0.1)), N=int(cfg.get("grid_points", 21)))
     dt = float(cfg.get("dt_s", 1e-12))
@@ -55,6 +56,13 @@ def main():
             wavelength = float(src.get("wavelength_m", 800e-9))
             omega = 2.0 * np.pi * float(src.get("frequency_Hz", 0.0))
             u = gaussian_beam_energy(grid, P0=P0, w0=w0, wavelength=wavelength, omega=omega, t=t)
+        elif src["type"] == "plasma_ring":
+            I0 = float(src.get("I0_A", 1e6))
+            R = float(src.get("R_m", 0.02))
+            r_minor = float(src.get("r_minor_m", 0.005))
+            omega = 2.0 * np.pi * float(src.get("frequency_Hz", 1e5))
+            direction = src.get("direction", "cw")
+            u = plasma_ring_energy(grid, I0=I0, R=R, r_minor=r_minor, omega=omega, t=t, direction=direction)
         else:
             raise SystemExit(f"Unknown source type: {src['type']}")
         # Flatten for quadrupole; include cell volume via scaling of rho: multiply by dV when summing later
@@ -76,7 +84,19 @@ def main():
             if E_total > 0.0:
                 frac = max(0.0, 1.0 - (P_loss * dt) / E_total)
                 u *= frac
-
+        
+        # Apply birefringence feedback (first-order perturbation via local Δn)
+        if birefringence_feedback:
+            # Estimate local E from u (assuming u ~ epsilon0 E^2 / 2)
+            from efqs.constants import epsilon0
+            from efqs.heisenberg_euler import delta_n_E
+            E_local = np.sqrt(2.0 * u / epsilon0 + 1e-20)
+            # Compute Δn (use parallel component as proxy)
+            dn_par, dn_perp = delta_n_E(E_local)
+            # Effective index change modulates intensity: I' = I * (1 + Δn)
+            # Energy density u scales similarly (first-order)
+            u *= (1.0 + dn_par)
+        
         pos = grid.positions_flat
         u_flat = u.reshape(-1)
         # quadrupole currently sums rho*..., where rho = u/c^2; include dV by scaling rho
@@ -112,6 +132,7 @@ def main():
                 "observer_distance_m": obs_R,
                 "use_tt_projection": use_tt,
                 "include_pair_losses": include_pair_losses,
+                "birefringence_feedback": birefringence_feedback,
                 "source": src,
                 "steps": steps,
                 "dt_s": dt,

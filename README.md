@@ -103,5 +103,8 @@ These are path-finder estimates for comparing geometries and configurations, not
 ## Caution
 These models are leading-order, homogeneous-field approximations. Real experiments involve spatiotemporal structure, dispersion, damage thresholds, and noise.
 
+## Documentation
+- [Back-Reaction Assessment Guide](docs/BackReactionGuide.md) – How to interpret metrics and run systematic sweeps to assess EM ↔ spacetime viability
+
 ## License
 MIT

@@ -1,0 +1,19 @@
+{
+  "enable_gravity": true,
+  "observer_distance_m": 10.0,
+  "box_size_m": 0.1,
+  "grid_points": 25,
+  "dt_s": 1e-12,
+  "steps": 200,
+  "use_tt_projection": true,
+  "include_pair_losses": false,
+  "output_json": "examples/plasma_ring_results.json",
+  "source": {
+    "type": "plasma_ring",
+    "I0_A": 1e6,
+    "R_m": 0.03,
+    "r_minor_m": 0.005,
+    "frequency_Hz": 1e5,
+    "direction": "cw"
+  }
+}
