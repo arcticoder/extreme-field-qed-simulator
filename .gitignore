@@ -21,3 +21,4 @@ results/
 figures/
 
 docs/reference
+outputs/*.txt
