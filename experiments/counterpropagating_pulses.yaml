@@ -1,31 +1,53 @@
-# experiments/counterpropagating_pulses.yaml
-#
+# Counterpropagating Pulses Experiment
 # Two intense, counter-propagating laser pulses interfere in the vacuum.
 # This is a canonical setup for studying vacuum birefringence, pair production,
 # and gravitational effects from pure field energy.
 
-# Base simulation parameters
-base_config:
-  # Simulation domain
-  box_size_m: 0.05
-  grid_points: 64
-
-  # Time evolution
-  dt_s: 1.0e-17
-  steps: 200
-
-  # Physics toggles
-  enable_gravity: true
-  include_pair_losses: true
-  use_tt_projection: true
-
-  # Observer settings
-  observer_distance_m: 10.0
-
-# Source definition
-source:
-  type: "interfering_pulses"
-  E0_Vpm: 5.0e15
-  wavelength_m: 800.0e-9
-  pulse_duration_s: 10.0e-15
-  pulse_separation_m: 0.01
+counterpropagating_pulses:
+  name: "Counterpropagating Pulses - Vacuum QED"
+  description: "Two 5 PV/m counter-propagating pulses with 10 fs duration"
+  
+  geometry:
+    type: "colliding_pulses"
+    parameters:
+      E0: 5.0e15  # V/m
+      waist: 5.0e-6  # 5 μm focal spot
+      wavelength: 800.0e-9  # 800 nm
+      pulse_duration: 10.0e-15  # 10 fs
+      collision_delay: 0.0
+      polarization: "parallel"
+  
+  grid:
+    box_size: 0.05  # 5 cm
+    grid_points: 64
+  
+  time_evolution:
+    t_start: -50.0e-15
+    t_end: 150.0e-15
+    dt: 1.0e-17
+  
+  physics:
+    include_heisenberg_euler: true
+    include_pair_production: true
+    include_qed_stress_energy: true
+  
+  gravitational:
+    enabled: true
+    observer_distances: [10.0]
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    enabled: true
+    ansatze: ["field_invariant_F2", "photon_number"]
+    kappa_scan: [1.0e-10, 1.0e-5, 1.0]
+  
+  detection_thresholds:
+    LIGO: 1.0e-21
+    advanced_LIGO: 1.0e-22
+  
+  output:
+    hdf5_file: "results/counterpropagating_pulses.h5"
+    save_fields: false
+    save_quadrupole: true
+    save_strain: true

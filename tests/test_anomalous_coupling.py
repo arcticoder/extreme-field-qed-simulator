@@ -11,7 +11,7 @@ Tests:
 
 import pytest
 import numpy as np
-from src.efqs.anomalous_coupling import (
+from efqs.anomalous_coupling import (
     vector_potential_squared_ansatz,
     field_invariant_ansatz,
     photon_number_coupling_ansatz,
@@ -23,7 +23,7 @@ from src.efqs.anomalous_coupling import (
     compute_kappa_constraints,
     PREDEFINED_COUPLINGS
 )
-from src.efqs.constants import c, epsilon0, mu0, hbar
+from efqs.constants import c, epsilon0, mu0, hbar
 
 
 class TestAnsatzFunctions:

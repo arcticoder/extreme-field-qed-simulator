@@ -11,17 +11,14 @@ Tests:
 
 import pytest
 import numpy as np
-from src.efqs.detector_noise import (
+from efqs.detector_noise import (
     LIGO_O1_asd,
     aLIGO_design_asd,
     LISA_asd,
     einstein_telescope_asd,
     tabletop_interferometer_asd,
-    quantum_sensor_asd,
     matched_filter_snr,
-    characteristic_strain_sensitivity,
-    DETECTOR_NOISE_CURVES,
-    DetectorNoiseCurve
+    characteristic_strain_sensitivity
 )
 
 

@@ -1,34 +1,52 @@
-# experiments/rotating_capacitor.yaml
-#
+# Rotating Capacitor Experiment
 # A physically rotating object with a static electric field.
 # While the fields are electrostatic in the co-rotating frame,
 # the rotation in the lab frame creates a time-varying energy-momentum
 # tensor, which can source gravitational waves.
 
-# Base simulation parameters
-base_config:
-  # Simulation domain
-  box_size_m: 0.4
-  grid_points: 64
-
-  # Time evolution
-  dt_s: 1.0e-4
-  steps: 500
-
-  # Physics toggles
-  enable_gravity: true
-  include_pair_losses: false
-  use_tt_projection: true
-
-  # Observer settings
-  observer_distance_m: 5.0
-
-# Source definition
-source:
-  type: "rotating_charge"
-  geometry: "parallel_plates"
-  charge_density_Cpm3: 1.0e-3
-  plate_radius_m: 0.1
-  plate_separation_m: 0.02
-  rotation_frequency_Hz: 100.0
-  rotation_axis: [0, 0, 1] # Z-axis
+rotating_capacitor:
+  name: "Rotating Capacitor - Quadrupole Source"
+  description: "High-voltage rotating capacitor with 100 Hz rotation frequency"
+  
+  geometry:
+    type: "rotating_capacitor"
+    parameters:
+      radius: 0.1  # 10 cm
+      separation: 0.02  # 2 cm plate separation
+      voltage: 1.0e5  # 100 kV
+      rotation_freq: 100.0  # 100 Hz
+      num_sectors: 4  # Quadrupole pattern
+  
+  grid:
+    box_size: 0.4
+    grid_points: 64
+  
+  time_evolution:
+    t_start: 0.0
+    t_end: 0.05  # 50 ms (5 rotations)
+    dt: 1.0e-4
+  
+  physics:
+    include_heisenberg_euler: false
+    include_pair_production: false
+    include_qed_stress_energy: false
+  
+  gravitational:
+    enabled: true
+    observer_distances: [5.0]
+    use_spectral_derivatives: true
+    apply_TT_projection: true
+  
+  anomalous_coupling:
+    enabled: true
+    ansatze: ["vector_potential_squared", "spatial_gradient"]
+    kappa_scan: [1.0e-5, 1.0, 1.0e5, 1.0e10]
+  
+  detection_thresholds:
+    tabletop_sensor: 1.0e-18
+    LIGO: 1.0e-21
+  
+  output:
+    hdf5_file: "results/rotating_capacitor.h5"
+    save_fields: false
+    save_strain: true
