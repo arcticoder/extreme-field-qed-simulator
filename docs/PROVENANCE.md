@@ -14,6 +14,28 @@ This project builds on theoretical and experimental work in:
 
 All reference materials are stored in `docs/reference/` with checksums documented below for verification and reproducibility.
 
+## How to Add New References (for agent use)
+
+To make new papers/books available to tooling and AI agents:
+
+1. Place the file under `docs/reference/<TopicName>/` (PDF, TeX, or BibTeX).
+2. Run a checksum and add an entry under the appropriate section below.
+	```bash
+	sha256sum docs/reference/<TopicName>/<file.ext>
+	```
+3. If it’s a PDF, consider extracting text for search:
+	```bash
+	python scripts/tools/pdf_to_text.py docs/reference/<TopicName>/<file.pdf> > docs/reference/<TopicName>/<file>.txt
+	```
+4. Update or create a BibTeX entry in `docs/reference/<TopicName>/<file>.bib` with citation keys.
+5. Commit changes with a message that mentions “provenance” so bots can find it easily.
+6. Optional: add a short note in this file’s “Update History”.
+
+Agent discovery tips:
+- Use descriptive folder and file names (e.g., `Heisenberg-Euler/dunne2011.tex`).
+- Prefer searchable text (TeX/Markdown or extracted `.txt`).
+- Add a one-line “Influence” note explaining why the reference matters (which module it informs).
+
 ---
 
 ## Reference Materials

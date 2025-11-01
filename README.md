@@ -1,5 +1,18 @@
 # Extreme-Field QED Simulator
 
+## Status
+- Stable research sandbox; actively maintained
+- New: gravitational-coupling plugin (EM stress–energy → h(t), P_GW)
+- YAML/JSON experiments with automated sweeps
+
+## Capabilities
+- Heisenberg–Euler vacuum birefringence and photon–photon scattering (O(1) estimates)
+- Schwinger pair production (order-of-magnitude)
+- Linearized GR coupling: EM stress–energy → quadrupole → h(t), P_GW
+- Detector models and κ-constraint “discovery engine” sweeps
+
+> See also: docs/PROVENANCE.md for reference provenance and how to add new sources.
+
 Simulate ultra-intense light interacting with quantum vacuum structure and spacetime:
 - **Vacuum birefringence** via Heisenberg–Euler effective Lagrangian
 - **Photon–photon scattering** cross sections (order-of-magnitude)
@@ -9,7 +22,7 @@ Simulate ultra-intense light interacting with quantum vacuum structure and space
 
 This is a sandbox for "intense EM fields meet spacetime" exploration. It targets near-term, testable regimes (QED nonlinearities, vacuum polarization control) and provides a path-finder for field–spacetime interaction physics.
 
-## Quick start
+## Quick start (reproducible)
 
 ```bash
 git clone https://github.com/arcticoder/extreme-field-qed-simulator.git
@@ -17,16 +30,16 @@ cd extreme-field-qed-simulator
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 
-# Vacuum birefringence (probe through strong field region)
-python scripts/simulate_birefringence.py --E0 1e15 --L 1.0 --lambda0 532e-9 --theta 45 --cavity-gain 1e6
-
-# Schwinger pair production estimate
-python scripts/simulate_pair_production.py --E0 1e16 --volume 1e-12 --duration 1e-12
-
-# Gravitational coupling from EM fields
+# Minimal gravitational-coupling sanity run (tiny h_rms output)
 python scripts/simulate_gravity_coupling.py --config examples/configs/interfering_pulses.json
 
-# Run parameter sweep
+# Expected: a small RMS strain (e.g., h_rms ~ 1e-58 to 1e-60) printed to stdout
+
+# Optional: quick birefringence and pair-production demos
+python scripts/simulate_birefringence.py --E0 1e15 --L 1.0 --lambda0 532e-9 --theta 45 --cavity-gain 1e6
+python scripts/simulate_pair_production.py --E0 1e16 --volume 1e-12 --duration 1e-12
+
+# Sweeps (see configs for details)
 python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.json --output results.json
 ```
 
@@ -185,8 +198,11 @@ E₀ = 2×10¹⁴ V/m  →  h_rms = 5.9×10⁻⁵⁸,  κ_LIGO = 8.9×10³⁰  (
 - **[Detector Sensitivity Curves](docs/detector_sensitivities.png)** – ASDs for LIGO/LISA/ET/quantum sensors
 
 ## Documentation
+- [Quick Start](docs/quickstart.md) — minimal run, expected outputs, troubleshooting
+- [Anomalous Coupling (κ) Modules](docs/anomalous_coupling.md) — parameterization and units
 - [Discovery Engine Guide](docs/DiscoveryEngineGuide.md) – **Complete guide** to κ-constraint methodology, parameter sweeps, ansätze catalog, and publication workflow
 - [Back-Reaction Assessment Guide](docs/BackReactionGuide.md) – How to interpret metrics and run systematic sweeps to assess EM ↔ spacetime viability
+ - [Provenance Guide](docs/PROVENANCE.md) — how references are organized and how to add new ones for agent use
 
 ## License
 MIT
