@@ -1,0 +1,31 @@
+# experiments/cw_cavity_quadrupole.yaml
+#
+# A continuous-wave (CW) laser builds up a high-energy standing wave
+# in a resonant optical cavity. The oscillating energy density creates a
+# time-varying quadrupole moment, which should be a source of gravitational waves.
+
+# Base simulation parameters
+base_config:
+  # Simulation domain
+  box_size_m: [0.1, 0.1, 0.5] # Rectangular cavity
+  grid_points: [32, 32, 128]
+
+  # Time evolution
+  dt_s: 5.0e-12
+  steps: 1000
+
+  # Physics toggles
+  enable_gravity: true
+  include_pair_losses: false # Energy is below pair production threshold
+  use_tt_projection: true
+
+  # Observer settings
+  observer_distance_m: 2.0
+
+# Source definition
+source:
+  type: "standing_wave_cavity"
+  E0_Vpm: 1.0e9 # High, but achievable in a cavity
+  wavelength_m: 1064.0e-9 # Nd:YAG laser
+  cavity_length_m: 0.5
+  cavity_finesse: 100000

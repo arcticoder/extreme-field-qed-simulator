@@ -1,0 +1,31 @@
+# experiments/counterpropagating_pulses.yaml
+#
+# Two intense, counter-propagating laser pulses interfere in the vacuum.
+# This is a canonical setup for studying vacuum birefringence, pair production,
+# and gravitational effects from pure field energy.
+
+# Base simulation parameters
+base_config:
+  # Simulation domain
+  box_size_m: 0.05
+  grid_points: 64
+
+  # Time evolution
+  dt_s: 1.0e-17
+  steps: 200
+
+  # Physics toggles
+  enable_gravity: true
+  include_pair_losses: true
+  use_tt_projection: true
+
+  # Observer settings
+  observer_distance_m: 10.0
+
+# Source definition
+source:
+  type: "interfering_pulses"
+  E0_Vpm: 5.0e15
+  wavelength_m: 800.0e-9
+  pulse_duration_s: 10.0e-15
+  pulse_separation_m: 0.01

@@ -1,0 +1,34 @@
+# experiments/rotating_capacitor.yaml
+#
+# A physically rotating object with a static electric field.
+# While the fields are electrostatic in the co-rotating frame,
+# the rotation in the lab frame creates a time-varying energy-momentum
+# tensor, which can source gravitational waves.
+
+# Base simulation parameters
+base_config:
+  # Simulation domain
+  box_size_m: 0.4
+  grid_points: 64
+
+  # Time evolution
+  dt_s: 1.0e-4
+  steps: 500
+
+  # Physics toggles
+  enable_gravity: true
+  include_pair_losses: false
+  use_tt_projection: true
+
+  # Observer settings
+  observer_distance_m: 5.0
+
+# Source definition
+source:
+  type: "rotating_charge"
+  geometry: "parallel_plates"
+  charge_density_Cpm3: 1.0e-3
+  plate_radius_m: 0.1
+  plate_separation_m: 0.02
+  rotation_frequency_Hz: 100.0
+  rotation_axis: [0, 0, 1] # Z-axis
