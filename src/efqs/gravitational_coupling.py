@@ -157,7 +157,12 @@ def quadrupole_moment(positions: np.ndarray, energy_elements_J: np.ndarray) -> n
 
 
 def strain_far_field(
-        Q_t: np.ndarray, dt: float, R: float, use_tt: bool = True, use_spectral: bool = True
+        Q_t: np.ndarray, 
+        dt: float, 
+        R: float, 
+        use_tt: bool = True, 
+        use_spectral: bool = True,
+        line_of_sight: np.ndarray | None = None
 ) -> np.ndarray:
         """Compute far-field strain h_ij from quadrupole Q_ij(t).
 
@@ -165,8 +170,10 @@ def strain_far_field(
             Q_t: shape (nt, 3, 3)
             dt: timestep [s]
             R: distance [m]
-            use_tt: if True, apply TT projection (placeholder: simplified version)
+            use_tt: if True, apply TT projection
             use_spectral: if True, use spectral derivatives
+            line_of_sight: 3-vector pointing from source to observer (default: [0,0,1] = z-axis)
+                          Will be automatically normalized if provided.
         Returns:
             h: shape (nt, 3, 3)
         """
@@ -180,15 +187,18 @@ def strain_far_field(
         h = pref * Qdd
 
         if use_tt:
-                # Simple TT projection: for a given line-of-sight n (default z-axis),
-                # P_ij = delta_ij - n_i n_j, Q_TT = P Q P - 1/2 P Tr(PQ)
-                # Placeholder: assume observer along z; apply projection
-                n = np.array([0.0, 0.0, 1.0])
+                # TT projection: for a given line-of-sight n,
+                # P_ij = delta_ij - n_i n_j, h_TT = P h P - 1/2 P Tr(Ph)
+                if line_of_sight is None:
+                        n = np.array([0.0, 0.0, 1.0])
+                else:
+                        n = np.asarray(line_of_sight, dtype=float)
+                        n = n / np.linalg.norm(n)  # normalize
                 P = np.eye(3) - np.outer(n, n)
                 for t in range(h.shape[0]):
-                        PQ = P @ h[t] @ P
-                        trace_PQ = np.trace(PQ)
-                        h[t] = PQ - 0.5 * P * trace_PQ
+                        Ph = P @ h[t] @ P
+                        trace_Ph = np.trace(Ph)
+                        h[t] = Ph - 0.5 * P * trace_Ph
         return h
 
 

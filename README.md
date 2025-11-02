@@ -50,11 +50,28 @@ python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.
 - Phase retardation and induced ellipticity for a probe beam
 - Simple Schwinger-rate pair production estimator (warning: exponentially suppressed unless E ~ E_S)
 
-### Gravitational Coupling (NEW)
+### Core API Functions (NEW in v2.0)
+The `efqs.gravitational_coupling` module provides validated functions for GW emission calculations:
+- `quadrupole_moment(positions, energy_elements_J)` — Compute Q_ij from energy distribution
+- `strain_far_field(Q_t, dt, R, use_tt=True, line_of_sight=None)` — Far-field strain with TT projection
+- `radiated_power_from_quadrupole(Q_t, dt)` — Instantaneous power P(t) via quadrupole formula
+- `dominant_frequency(series, dt, component=None)` — FFT peak extraction with bandwidth
+- `stress_energy_from_fields(E, B, include_qed=False)` — EM energy density T^{00}
+
+**TT projection details**:
+- Default line-of-sight: `[0, 0, 1]` (z-axis observer)
+- Custom directions: Pass normalized 3-vector `line_of_sight=[nx, ny, nz]` (auto-normalized if needed)
+- Projection identities: Traceless (Tr(h)=0), transverse (h·n=0), symmetric (h=h^T)
+- Unit tests validate all projection properties (see `tests/test_tt_projection.py`)
+
+### Gravitational Coupling
 - EM stress–energy tensor from E, B fields (with optional QED corrections)
-- Quadrupole moment calculation from energy distributions
-- Far-field gravitational strain with proper TT projection
-- Radiated GW power via quadrupole formula
+- Quadrupole moment calculation from energy distributions (supports grid-based and point-source interfaces)
+- Far-field gravitational strain with configurable TT projection
+  - **Line-of-sight selector**: Specify observer direction for TT projection (default: z-axis)
+  - Transverse-traceless gauge automatically enforced when `use_tt=True`
+- Radiated GW power via quadrupole formula (returns time series P(t) or time-averaged value)
+- **Frequency diagnostics**: Dominant frequency extraction, peak amplitude, and -3 dB bandwidth via FFT analysis
 - Optional pair-production energy-loss channel in time evolution (uniform drain approximation)
 - Multiple source models:
   - Interfering laser pulses (standing waves)
@@ -70,14 +87,33 @@ python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.
 - All tests passing (5/5)
 
 ### Coupling Metrics and Outputs
-- The gravity coupling script now computes:
-  - RMS strain (time-averaged magnitude)
-  - Average GW power
-  - Efficiency metrics: P_GW/P_in and h per Joule
-  - Frequency spectrum: dominant frequency, amplitude, bandwidth via FFT
-- You can save results to JSON by adding `"output_json": "path/to/results.json"` in the config.
-- Toggle pair-production losses in the time evolution via `"include_pair_losses": true` (uses a uniform drain based on Schwinger rate at effective field).
-- Toggle birefringence feedback via `"birefringence_feedback": true` (first-order Δn modulation of local energy density).
+The gravity coupling scripts compute:
+- **Strain metrics**: RMS strain, maximum strain, time series h_ij(t) with optional TT projection
+- **Power metrics**: Average and peak GW power, instantaneous power time series P(t)
+- **Efficiency**: P_GW/P_in ratio, h_rms per Joule of input energy
+- **Frequency spectrum**: Dominant frequency (Hz), peak amplitude, -3 dB bandwidth via FFT analysis
+
+### Configuration Files
+This repository supports two configuration formats:
+- **JSON configs** (in `examples/configs/`): Simple format for standalone scripts like `simulate_gravity_coupling.py` and `run_sweep.py`. These directly specify parameters and support `"output_json"` field for saving results.
+- **YAML configs** (in `configs/`): Advanced format for `run_experiments.py` with multi-sweep support, detector models, and anomalous coupling ansätze. Use `--config configs/sweeps.yaml --sweep <sweep_name>` syntax. Outputs to HDF5 by default.
+
+**Quick reference**:
+```bash
+# JSON-based single run (saves to JSON if specified)
+python scripts/simulate_gravity_coupling.py --config examples/configs/interfering_pulses.json
+
+# JSON-based parameter sweep (saves to JSON)
+python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.json --output results.json
+
+# YAML-based experiment pipeline (saves to HDF5)
+python scripts/run_experiments.py --config configs/sweeps.yaml --sweep sweep_E0_colliding_pulses
+```
+
+**Optional physics toggles** (JSON configs):
+- `"include_pair_losses": true` — Enable pair-production energy drain (Schwinger rate)
+- `"birefringence_feedback": true` — First-order Δn modulation of local energy density
+- `"use_tt_projection": true` — Apply transverse-traceless projection to strain
 
 ## Physics Background
 
