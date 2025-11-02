@@ -124,3 +124,153 @@ def run_pipeline(grid: dict, E: np.ndarray, B: np.ndarray, dt: float, R: float =
         Q = compute_quadrupole(grid, u)
         h, P = compute_h_and_power(Q, dt, R=R)
         return Q, h, P
+
+
+# === API wrappers for script compatibility ===
+
+
+def quadrupole_moment(positions: np.ndarray, energy_elements_J: np.ndarray) -> np.ndarray:
+        """Wrapper around compute_quadrupole for position-based API.
+
+        Inputs:
+            positions: array shape (N, 3) of (x,y,z) coordinates OR dict with 'x','y','z' keys
+            energy_elements_J: array shape (N,) in Joules (already u * dV from caller)
+        Returns:
+            Q: numpy array shape (3, 3) for single snapshot
+        """
+        if isinstance(positions, dict):
+                # Dict-based grid interface
+                return compute_quadrupole(positions, energy_elements_J)
+
+        # Array-based interface: positions (N,3), energy_elements (N,)
+        # Compute Q_ij = sum_k (u_k / c^2) * (x_i^k x_j^k - 1/3 delta_ij r_k^2)
+        rho = energy_elements_J / (c ** 2)  # mass-equivalent
+        coords = positions  # (N, 3)
+        r2 = np.sum(coords ** 2, axis=1)  # (N,)
+        Q = np.zeros((3, 3), dtype=float)
+        eye = np.eye(3)
+        for k in range(len(rho)):
+                Q += rho[k] * (
+                        np.outer(coords[k], coords[k]) - (r2[k] / 3.0) * eye
+                )
+        return Q
+
+
+def strain_far_field(
+        Q_t: np.ndarray, dt: float, R: float, use_tt: bool = True, use_spectral: bool = True
+) -> np.ndarray:
+        """Compute far-field strain h_ij from quadrupole Q_ij(t).
+
+        Inputs:
+            Q_t: shape (nt, 3, 3)
+            dt: timestep [s]
+            R: distance [m]
+            use_tt: if True, apply TT projection (placeholder: simplified version)
+            use_spectral: if True, use spectral derivatives
+        Returns:
+            h: shape (nt, 3, 3)
+        """
+        if use_spectral:
+                Qdd = spectral_derivative(Q_t, dt, order=2)
+        else:
+                # Fallback finite difference 2nd deriv (centered)
+                Qdd = np.zeros_like(Q_t)
+                Qdd[1:-1] = (Q_t[2:] - 2 * Q_t[1:-1] + Q_t[:-2]) / (dt ** 2)
+        pref = 2.0 * G / (c ** 4 * R)
+        h = pref * Qdd
+
+        if use_tt:
+                # Simple TT projection: for a given line-of-sight n (default z-axis),
+                # P_ij = delta_ij - n_i n_j, Q_TT = P Q P - 1/2 P Tr(PQ)
+                # Placeholder: assume observer along z; apply projection
+                n = np.array([0.0, 0.0, 1.0])
+                P = np.eye(3) - np.outer(n, n)
+                for t in range(h.shape[0]):
+                        PQ = P @ h[t] @ P
+                        trace_PQ = np.trace(PQ)
+                        h[t] = PQ - 0.5 * P * trace_PQ
+        return h
+
+
+def radiated_power_from_quadrupole(Q_t: np.ndarray, dt: float, use_spectral: bool = True) -> np.ndarray:
+        """Compute instantaneous radiated GW power from quadrupole.
+
+        Inputs:
+            Q_t: shape (nt, 3, 3)
+            dt: timestep
+            use_spectral: if True, use spectral 3rd derivative
+        Returns:
+            P_t: array shape (nt,) [W] (instantaneous power at each time)
+        """
+        if use_spectral:
+                Qddd = spectral_derivative(Q_t, dt, order=3)
+        else:
+                # Fallback finite-difference 3rd deriv
+                Qddd = np.zeros_like(Q_t)
+                # 4-point centered: f'''(t) ≈ [-f(t-2h) + 2f(t-h) - 2f(t+h) + f(t+2h)]/(2h^3)
+                Qddd[2:-2] = (
+                        -Q_t[:-4] + 2 * Q_t[1:-3] - 2 * Q_t[3:-1] + Q_t[4:]
+                ) / (2 * dt ** 3)
+        inst = np.sum(Qddd * Qddd, axis=(1, 2))
+        P_t = (G / (5.0 * c ** 5)) * inst
+        return P_t
+
+
+def dominant_frequency(
+        series: np.ndarray, dt: float, component: int | tuple | None = None
+) -> dict[str, float]:
+        """Extract dominant frequency and bandwidth from time series via FFT.
+
+        Inputs:
+            series: shape (nt,) or (nt, ...) for h_+, h_x, or matrix components
+            dt: timestep [s]
+            component: if series is multidimensional, index to extract (e.g., (0,0) for h_xx)
+        Returns:
+            dict with keys: 'peak_freq' [Hz], 'peak_amplitude', 'bandwidth_3dB' [Hz]
+        """
+        if component is not None:
+                if isinstance(component, tuple):
+                        s = series[(slice(None),) + component]
+                else:
+                        s = series[:, component]
+        else:
+                # Assume 1D or take first component
+                s = series.ravel() if series.ndim == 1 else series[:, 0, 0]
+
+        nt = len(s)
+        freqs = np.fft.rfftfreq(nt, d=dt)
+        fft_s = np.fft.rfft(s)
+        psd = np.abs(fft_s) ** 2
+
+        idx_peak = int(np.argmax(psd[1:])) + 1  # skip DC
+        peak_freq = float(freqs[idx_peak])
+        peak_amp = float(np.sqrt(psd[idx_peak]))
+
+        # -3 dB bandwidth: find indices where psd drops to half peak
+        half_power = psd[idx_peak] / 2.0
+        left_idx = idx_peak
+        while left_idx > 1 and psd[left_idx] > half_power:
+                left_idx -= 1
+        right_idx = idx_peak
+        while right_idx < len(psd) - 1 and psd[right_idx] > half_power:
+                right_idx += 1
+        bw_3dB = float(freqs[right_idx] - freqs[left_idx])
+
+        return {"peak_freq_Hz": peak_freq, "peak_amplitude": peak_amp, "bandwidth_Hz": bw_3dB}
+
+
+def stress_energy_from_fields(
+        E: np.ndarray, B: np.ndarray, include_qed: bool = False
+) -> np.ndarray:
+        """Compute EM stress-energy T^{00} = (ε_0 E^2 + B^2/μ_0)/2.
+
+        Inputs:
+            E, B: arrays shape (..., 3)
+            include_qed: if True, apply Heisenberg–Euler corrections (placeholder: not implemented)
+        Returns:
+            T00: array with shape matching E[..., 0]
+        """
+        if include_qed:
+                # Placeholder for QED corrections; for now just return classical
+                pass
+        return em_energy_density(E, B)

@@ -202,7 +202,7 @@ E₀ = 2×10¹⁴ V/m  →  h_rms = 5.9×10⁻⁵⁸,  κ_LIGO = 8.9×10³⁰  (
 - [Anomalous Coupling (κ) Modules](docs/anomalous_coupling.md) — parameterization and units
 - [Discovery Engine Guide](docs/DiscoveryEngineGuide.md) – **Complete guide** to κ-constraint methodology, parameter sweeps, ansätze catalog, and publication workflow
 - [Back-Reaction Assessment Guide](docs/BackReactionGuide.md) – How to interpret metrics and run systematic sweeps to assess EM ↔ spacetime viability
- - [Provenance Guide](docs/PROVENANCE.md) — how references are organized and how to add new ones for agent use
+ - [Provenance Guide](docs/PROVENANCE.md) — how references are organized and how to add new ones
 
 ## License
 MIT
