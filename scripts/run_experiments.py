@@ -149,14 +149,14 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
         # Evaluate fields
         E, B = field_func(positions, t, **geom_params)
         
-        # Compute stress-energy
+        # Compute stress-energy (returns T00 as numpy array)
         include_qed = config['physics'].get('include_qed_stress_energy', False)
-        stress = stress_energy_from_fields(E, B, include_qed=include_qed)
+        T00 = stress_energy_from_fields(E, B, include_qed=include_qed)
         
-        T00_EM_avg[i] = np.mean(stress.T00)
+        T00_EM_avg[i] = np.mean(T00)
         
         # Quadrupole moment
-        Q_t[i] = quadrupole_moment(positions, stress.T00 * dV)
+        Q_t[i] = quadrupole_moment(positions, T00 * dV)
         
         # Store snapshots if requested
         if save_fields and i in snapshot_indices:
@@ -485,42 +485,54 @@ def plot_sweep_summary(summary_df, sweep_param: str, save_path: str):
     
     # h_rms
     ax = axes[0, 0]
+    plotted = False
     for col in summary_df.columns:
         if 'h_rms' in col:
             ax.loglog(x, summary_df[col].values, 'o-', label=col)
+            plotted = True
     ax.set_xlabel(sweep_param)
     ax.set_ylabel('h_rms')
-    ax.legend(fontsize=8)
+    if plotted:
+        ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     
     # P_avg
     ax = axes[0, 1]
+    plotted = False
     for col in summary_df.columns:
         if 'P_avg' in col:
             ax.loglog(x, summary_df[col].values, 's-', label=col)
+            plotted = True
     ax.set_xlabel(sweep_param)
     ax.set_ylabel('P_avg [W]')
-    ax.legend(fontsize=8)
+    if plotted:
+        ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     
     # κ constraints (pick one detector, all ansätze)
     ax = axes[1, 0]
+    plotted = False
     for col in summary_df.columns:
         if 'kappa_' in col and 'LIGO' in col:
             ax.loglog(x, summary_df[col].values, '^-', label=col.replace('kappa_', '').replace('_LIGO', ''))
+            plotted = True
     ax.set_xlabel(sweep_param)
     ax.set_ylabel('κ_required (LIGO)')
-    ax.legend(fontsize=8)
+    if plotted:
+        ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     
     # Peak frequency
     ax = axes[1, 1]
+    plotted = False
     for col in summary_df.columns:
         if 'freq_peak' in col:
             ax.semilogx(x, summary_df[col].values, 'd-', label=col)
+            plotted = True
     ax.set_xlabel(sweep_param)
     ax.set_ylabel('Peak Frequency [Hz]')
-    ax.legend(fontsize=8)
+    if plotted:
+        ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
     
     plt.tight_layout()

@@ -68,7 +68,7 @@ def colliding_gaussian_pulses(grid_positions: np.ndarray, t: float,
     gouy1 = np.arctan(z1_rel / z_R)
     
     envelope1 = (waist / w1) * np.exp(-(r_perp / w1)**2)
-    phase1 = k * z1_rel - omega * (t - collision_delay) + k * r_perp**2 / (2.0 * R1) - gouy1
+    phase1 = k * z1_rel - omega * (t - collision_delay) + k * r_perp**2 / (2.0 * (R1 + 1e-12)) - gouy1
     temporal1 = np.exp(-((t - collision_delay - z1_rel/c) / pulse_duration)**2)
     
     E1_magnitude = E0 * envelope1 * temporal1 * np.cos(phase1)
@@ -80,7 +80,7 @@ def colliding_gaussian_pulses(grid_positions: np.ndarray, t: float,
     gouy2 = np.arctan(z2_rel / z_R)
     
     envelope2 = (waist / w2) * np.exp(-(r_perp / w2)**2)
-    phase2 = -k * z2_rel - omega * (t - collision_delay) + k * r_perp**2 / (2.0 * R2) - gouy2
+    phase2 = -k * z2_rel - omega * (t - collision_delay) + k * r_perp**2 / (2.0 * (R2 + 1e-12)) - gouy2
     temporal2 = np.exp(-((t - collision_delay + z2_rel/c) / pulse_duration)**2)
     
     E2_magnitude = E0 * envelope2 * temporal2 * np.cos(phase2)

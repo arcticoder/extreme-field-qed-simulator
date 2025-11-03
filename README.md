@@ -39,8 +39,8 @@ python scripts/simulate_gravity_coupling.py --config examples/configs/interferin
 python scripts/simulate_birefringence.py --E0 1e15 --L 1.0 --lambda0 532e-9 --theta 45 --cavity-gain 1e6
 python scripts/simulate_pair_production.py --E0 1e16 --volume 1e-12 --duration 1e-12
 
-# Sweeps (see configs for details)
-python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.json --output results.json
+# Sweeps (save to results/sweeps/ folder)
+python scripts/run_sweep.py --sweep-config examples/configs/sweep_gaussian_beam.json --output results/sweeps/gaussian_sweep.json
 ```
 
 ## Features
