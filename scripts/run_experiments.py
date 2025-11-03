@@ -192,6 +192,8 @@ def run_experiment(config: Dict[str, Any]) -> Dict[str, Any]:
             print(f"    h_rms = {h_rms:.3e}")
             print(f"    P_avg = {P_avg:.3e} W")
             print(f"    Peak freq = {freq_info['peak_freq_Hz']:.3e} Hz")
+            print(f"    Peak amplitude = {freq_info['peak_amplitude']:.3e}")
+            print(f"    -3 dB bandwidth = {freq_info['bandwidth_Hz']:.3e} Hz")
             
             results['gravitational'][f'R_{R}m'] = {
                 'h_rms': h_rms,
